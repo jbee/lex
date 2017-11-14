@@ -52,11 +52,13 @@ public final class Lex {
 			byte op  = pattern[pn++];
 			switch (op) {
 			case '*': dn++; break;
-			case '$': if (data[dn++] >= 0) return pos(pn, mismatch(dn-1)); break;
+			case '!': if (data[dn++] >= 0) return pos(pn, mismatch(dn-1)); break;
 			case '^': if (isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break;
-			case '_': if (!isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break; 
-			case '@': if ((0xFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, mismatch(dn-1)); break;
-			case '#': if ((0xFFF & (data[dn++]) - '0') >= 10) return pos(pn, mismatch(dn-1)); break;
+			case '_': if (!isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break;
+			case '$': if (!isNL(data[dn++])) return pos(pn, mismatch(dn-1)); break;
+			// range test use: (unsigned)(number-lower) <= (upper-lower)
+			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, mismatch(dn-1)); break;
+			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pn, mismatch(dn-1)); break;
 			case '~': // scan
 				int dnf = -1;
 				int dnf0 = dn;
@@ -160,7 +162,11 @@ public final class Lex {
 	}
 	
 	private static boolean isWS(byte c) {
-		return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+		return c == ' ' || c == '\t' || isNL(c);
+	}
+	
+	private static boolean isNL(byte c) {
+		return c == '\n' || c == '\r';
 	}
 	
 	/*

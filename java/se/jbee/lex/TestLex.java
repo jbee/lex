@@ -9,6 +9,7 @@ import static se.jbee.lex.Lex.mismatch;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.junit.Test;
@@ -434,6 +435,18 @@ public class TestLex {
 	public void matchWhitespaceSetPlus() {
 		assertFullMatch("_+x", " \t\n\rx");
 	}
+	
+	@Test
+	public void matchNL() {
+		assertFullMatch("$$", "\n\r");
+	}
+	
+	@Test
+	public void mismatchNL() {
+		assertNoMatchAt("$", " ", 0);
+		assertNoMatchAt("$", "\t", 0);
+		assertNoMatchAt("$", "a", 0);
+	}
 
 	@Test
 	public void mismatchNonWhitespaceSet() {
@@ -451,6 +464,12 @@ public class TestLex {
 		assertFullMatch("******", "+-*/^=");
 		assertFullMatch("******", "&|%#@~");
 		assertFullMatch("****",   " \t\n\r");
+	}
+	
+	@Test
+	public void matchAnyNonASCIIByte() {
+		int[] res = match(new byte[] {'`','!','+', '`'}, new byte[] {-1, -42, -127}, 0);
+		assertEquals(3, res[1]);
 	}
 
 	private static void assertNoMatchAt(String pattern, String data, int pos) {

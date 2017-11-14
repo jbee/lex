@@ -35,8 +35,9 @@ SPECIAL SETS
 @ = {a-zA-Z} any ASCII letter
 _            any ASCII whitespace character
 ^            any byte that is not a ASCII whitespace character
-$ = }{       any non ASCII byte (1xxx xxxx)
+! = }{       any non ASCII byte (1xxx xxxx)
 *            any single byte
+$            ASCII new line (\n or \r)
 
 
 REPETITION   x+
@@ -55,7 +56,7 @@ SCANNING     ~x
 ~            skip until following set, group or literal matches
 
 
-Any other byte (not {}()[]#@^_$+~) is matched literally. 
+Any other byte (not {}()[]#@^_$+~!*) is matched literally. 
 Sets can be used to match any of the instruction symbols literally, like {~}.
 
 
@@ -71,6 +72,6 @@ EXAMPLES
 "~({^\}")         a quoted string using a scan with escaping support
 {$}@}a-zA-Z0-9_{  a php style identifier
 [{+}]#+[{ -}#+]+  international phone numbers
-~(Foo)            searching for "foo" (e.g. in a file)
+~(Foo)            searching for "Foo" (e.g. in a file)
 ~(<h#>)           searching for "<h0>" to "<h9>"
 ~(<h{1-6}>)       searching for "<h1>" to "<h6>"
