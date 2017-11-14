@@ -68,7 +68,7 @@ EXAMPLES
 "{^"}+"           a quoted string using a set to find the end
 "~"               a quoted string using a scan to find the end
 "~({^\}")         a quoted string using a scan with escaping support
-{$}@<a-zA-Z0-9_>  a php style identifier
+{$}@}a-zA-Z0-9_{  a php style identifier
 [{+}]#+[{ -}#+]+  international phone numbers
 ~(Foo)            searching for "foo" (e.g. in a file)
 ~(<h#>)           searching for "<h0>" to "<h9>"
