@@ -63,4 +63,6 @@ EXAMPLES
 "~({^\}")         a quoted string using a scan with escaping support
 {$}@<a-zA-Z0-9_>  a php style identifier
 [{+}]#+[{ -}#+]+  international phone numbers
-~(Foo)            searching for "foo" in a file
+~(Foo)            searching for "foo" (e.g. in a file)
+~(<h#>)           searching for "<h0>" to "<h9>"
+~(<h{1-6}>)       searching for "<h1>" to "<h6>"
