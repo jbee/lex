@@ -173,6 +173,10 @@ public final class Lex {
 	private static int skip(byte[] pattern, int pm0, long mask, int pm,	byte[] data, int dn) {
 		final int len = pm - pm0;
 		final byte start = pattern[pm0];
+		if (len == 1) {
+			while (dn < data.length && data[dn] != start) dn++;
+			return dn;
+		}
 		do {
 			while (dn < data.length && ((1L << shift(data[dn])) & mask) == 0) {
 				dn+= len;

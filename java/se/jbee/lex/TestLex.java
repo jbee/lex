@@ -1,11 +1,11 @@
 package se.jbee.lex;
 
-import static se.jbee.lex.Lex.isLiteral;
-import static se.jbee.lex.Lex.mismatch;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static se.jbee.lex.Lex.isLiteral;
+import static se.jbee.lex.Lex.mismatch;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +34,9 @@ public class TestLex {
 		assertEquals(49, res[1]);
 	}
 	
+	/**
+	 * requires "ant jar" to have the file downloaded
+	 **/
 	@Test
 	public void searchTextInFile() throws IOException {
 		File f = new File("libraries.htm");
