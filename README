@@ -12,6 +12,8 @@ Feedback  http://github.com/jbee/lex/issues
 Copyright (c) 2017 Jan Bernitt
 
 
+________________________________________________________________________________
+
 SETS         {...} and }...{
 
 {abc}        a set of bytes "a","b" and "c"
@@ -47,3 +49,18 @@ SCANNING
 
 Any other byte (not {}()[]#@^_$+~) is matched literally. 
 Sets can be used to match any of the instruction symbols literally, like {~}.
+
+
+________________________________________________________________________________
+
+EXAMPLES
+
+####/##/##        a date of format yyyy/mm/dd
+##:##[:##]        a time of format hh:mm or hh:mm:ss
+#+[.#+]           a simple floating point number with optional decimals
+"{^"}+"           a quoted string using a set to find the end
+"~"               a quoted string using a scan to find the end
+"~({^\}")         a quoted string using a scan with escaping support
+{$}@<a-zA-Z0-9_>  a php style identifier
+[{+}]#+[{ -}#+]+  international phone numbers
+~(Foo)            searching for "foo" in a file
