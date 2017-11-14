@@ -338,6 +338,10 @@ public class TestLex {
 	@Test
 	public void mismatchDigitPattern() {
 		assertNoMatchAt("#", "a", 0);
+		assertNoMatchAt("#", "/", 0);
+		assertNoMatchAt("#", ":", 0);
+		assertNoMatchAt("#", "T", 0);
+		assertNoMatchAt("#", "t", 0);
 		assertNoMatchAt("x#", "xa", 1);
 		assertNoMatchAt("#y", "0t", 1);
 	}
@@ -360,6 +364,7 @@ public class TestLex {
 		assertNoMatchAt("@", "`", 0);
 		assertNoMatchAt("@", "{", 0);
 		assertNoMatchAt("@", "0", 0);
+		assertNoMatchAt("@", "+", 0);
 	}
 
 	@Test
@@ -424,6 +429,11 @@ public class TestLex {
 	public void matchNonWhitespaceSetPlus() {
 		assertFullMatch("^+", "azAZ:-,;*()[]{}?!<>|&%@");
 	}
+	
+	@Test
+	public void matchWhitespaceSetPlus() {
+		assertFullMatch("_+x", " \t\n\rx");
+	}
 
 	@Test
 	public void mismatchNonWhitespaceSet() {
@@ -435,12 +445,12 @@ public class TestLex {
 
 	@Test
 	public void matchAnyByteSet() {
-		assertFullMatch("______", "aAzZ09");
-		assertFullMatch("______", "<>[]{}");
-		assertFullMatch("______", "!?-:.,");
-		assertFullMatch("______", "+-*/^=");
-		assertFullMatch("______", "&|%#@~");
-		assertFullMatch("____",   " \t\n\r");
+		assertFullMatch("******", "aAzZ09");
+		assertFullMatch("******", "<>[]{}");
+		assertFullMatch("******", "!?-:.,");
+		assertFullMatch("******", "+-*/^=");
+		assertFullMatch("******", "&|%#@~");
+		assertFullMatch("****",   " \t\n\r");
 	}
 
 	private static void assertNoMatchAt(String pattern, String data, int pos) {

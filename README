@@ -21,7 +21,7 @@ Java: basic ~100 LOC, optimized ~150 LOC
 
 ________________________________________________________________________________
 
-SETS         {...} and }...{
+SETS         {...}, }...{
 
 {abc}        a set of bytes "a","b" and "c"
 {^abc}       a set of any byte but "a","b" and "c"
@@ -29,27 +29,28 @@ SETS         {...} and }...{
 }a-c{:       range of "a" to "c" and *all* non ASCII bytes
 
 
-SETS*
+SPECIAL SETS
 
 # = {0-9}    any ASCII digit
 @ = {a-zA-Z} any ASCII letter
+_            any ASCII whitespace character
 ^            any byte that is not a ASCII whitespace character
 $ = }{       any non ASCII byte (1xxx xxxx)
-_            any single byte
+*            any single byte
 
 
-REPETITION
+REPETITION   x+
 
 +            try previous set, group or literal again
 
 
-GROUPS
+GROUPS       (...), [...]
 
 (abc)        a group with sequence "abc" that *must* occur
 [abc]        a group with sequence "abc" that *can* occur
 
 
-SCANNING
+SCANNING     ~x
 
 ~            skip until following set, group or literal matches
 

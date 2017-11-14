@@ -51,12 +51,13 @@ public final class Lex {
 		while (pn < pattern.length && dn < data.length && maxOps-- != 0) {
 			byte op  = pattern[pn++];
 			switch (op) {
-			case '_': dn++; break;
-			case '$': if (data[dn++] >= 0) return pos(pn, mismatch(dn-1));
-			case '^': c=data[dn++]; if (c == ' ' || c == '\t' || c == '\n' || c == '\r') return pos(pn, mismatch(dn-1)); break;
-			case '@': c=data[dn++]; if (!(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')) return pos(pn, mismatch(dn-1)); break;
-			case '#': c=data[dn++]; if (!(c >= '0' && c <= '9')) return pos(pn, mismatch(dn-1)); break;
-			case '~': // fill
+			case '*': dn++; break;
+			case '$': if (data[dn++] >= 0) return pos(pn, mismatch(dn-1)); break;
+			case '^': if (isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break;
+			case '_': if (!isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break; 
+			case '@': if ((0xFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, mismatch(dn-1)); break;
+			case '#': if ((0xFFF & (data[dn++]) - '0') >= 10) return pos(pn, mismatch(dn-1)); break;
+			case '~': // scan
 				int dnf = -1;
 				int dnf0 = dn;
 				/* perf optimization start */
@@ -156,6 +157,10 @@ public final class Lex {
 	
 	static int mismatch(int pos) {
 		return -pos-1;
+	}
+	
+	private static boolean isWS(byte c) {
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 	}
 	
 	/*
