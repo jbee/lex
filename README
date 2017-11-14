@@ -4,12 +4,19 @@
 ▓   ▓   ▓ ▓
 ▓▓▓ ▓▓▓ ▓ ▓ Linear expressions
 
-Pattern matching with a tiny bytecode instructed matching machine.  
+Pattern matching with a tiny bytecode instructed matching machine.
 
 Docs      http://jbee.github.io/lex.html
 Feedback  http://github.com/jbee/lex/issues
 
 Copyright (c) 2017 Jan Bernitt
+
+
+________________________________________________________________________________
+
+IMPLEMENTAIONS
+
+Java: basic ~100 LOC, optimized ~150 LOC
 
 
 ________________________________________________________________________________
