@@ -1,0 +1,56 @@
+<project name="alma" default="jar" basedir=".">
+
+    <property name="jmh.ver" value="1.18" />
+
+    <property name="src" location="java"/>
+    <property name="build" location="build"/>
+    <property name="dist" location="dist"/>
+
+    <property name="jmh-core.jar" location="${build}/libs/jmh-core.jar"/>
+    <property name="jmh-generator-annprocess.jar" location="${build}/libs/jmh-generator-annprocess.jar"/>
+    <property name="joptsimple.jar" location="${build}/libs/joptsimple.jar"/>
+    <property name="commonsmath.jar" location="${build}/libs/commonsmath.jar"/>
+
+    <target name="download-libs" description="Download libraries">
+       <mkdir dir="${build}/libs/" />
+       <get src="http://central.maven.org/maven2/org/openjdk/jmh/jmh-core/${jmh.ver}/jmh-core-${jmh.ver}.jar"
+            dest="${jmh-core.jar}"
+            verbose="true" usetimestamp="true" skipexisting="true"/>
+       <get src="http://central.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/${jmh.ver}/jmh-generator-annprocess-${jmh.ver}.jar"
+            dest="${jmh-generator-annprocess.jar}"
+            verbose="true" usetimestamp="true" skipexisting="true"/>
+       <get src="http://central.maven.org/maven2/net/sf/jopt-simple/jopt-simple/4.6/jopt-simple-4.6.jar"
+            dest="${joptsimple.jar}"
+            verbose="true" usetimestamp="true" skipexisting="true"/>
+       <get src="http://central.maven.org/maven2/org/apache/commons/commons-math3/3.2/commons-math3-3.2.jar"
+            dest="${commonsmath.jar}"
+            verbose="true" usetimestamp="true" skipexisting="true"/>
+   		<get src="http://www.boost.org/doc/libs/1_41_0/libs/libraries.htm"
+    		dest="libraries.htm" verbose="true" usetimestamp="true" skipexisting="true" />
+    </target>
+
+    <target name="jar" description="Generate the self-contained JAR" depends="download-libs">
+        <mkdir dir="${build}"/>
+
+        <javac destdir="${build}" classpath="${jmh-core.jar};${jmh-generator-annprocess.jar}">
+        	<src path="${src}" />
+        </javac>
+
+        <delete dir="${dist} "/>
+        <mkdir dir="${dist}"/>
+
+        <jar jarfile="${dist}/benchmarks.jar" basedir="${build}">
+            <manifest>
+                <attribute name="Main-Class" value="org.openjdk.jmh.Main"/>
+            </manifest>
+            <zipfileset src="${jmh-core.jar}" excludes="**/META-INF/services/**" />
+            <zipfileset src="${joptsimple.jar}" />
+            <zipfileset src="${commonsmath.jar}" />
+        </jar>
+    </target>
+
+    <target name="clean" description="Clean">
+        <delete dir="${build}"/>
+        <delete dir="${dist}"/>
+    </target>
+</project>

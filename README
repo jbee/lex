@@ -1,0 +1,47 @@
+█   █▀▀ █ █
+█   █▀▀ ▄▀▄ Linear expressions
+▀▀▀ ▀▀▀ ▀ ▀ 
+
+Pattern matching with a tiny bytecode instructed matching machine.  
+
+Docs      http://jbee.github.io/lex.html
+Feedback  http://github.com/jbee/lex/issues
+
+Copyright (c) 2017 Jan Bernitt
+
+
+SETS         {...} and }...{
+
+{abc}        a set of bytes "a","b" and "c"
+{^abc}       a set of any byte but "a","b" and "c"
+{a-c}:       a set of "a", "b" and "c" given as a range
+}a-c{:       range of "a" to "c" and *all* non ASCII bytes
+
+
+SETS*
+
+# = {0-9}    any ASCII digit
+@ = {a-zA-Z} any ASCII letter
+^            any byte that is not a ASCII whitespace character
+$ = }{       any non ASCII byte (1xxx xxxx)
+_            any single byte
+
+
+REPETITION
+
++            try previous set, group or literal again
+
+
+GROUPS
+
+(abc)        a group with sequence "abc" that *must* occur
+[abc]        a group with sequence "abc" that *can* occur
+
+
+SCANNING
+
+~            skip until following set, group or literal matches
+
+
+Any other byte (not {}()[]#@^_$+~) is matched literally. 
+Sets can be used to match any of the instruction symbols literally, like {~}.
