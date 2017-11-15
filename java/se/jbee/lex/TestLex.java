@@ -35,22 +35,53 @@ public class TestLex {
 		assertEquals(49, res[1]);
 	}
 	
+	@Test
+	public void searchTextCombination() {
+		int[] res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
+		assertEquals(49, res[1]);
+		res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Hu.");
+		assertEquals(-1, res[1]);
+	}
+	
 	/**
 	 * requires "ant jar" to have the file downloaded
 	 **/
 	@Test
 	public void searchTextInFile() throws IOException {
 		File f = new File("libraries.htm");
+		if (!f.exists())
+			return;
 		byte[] data = Files.readAllBytes(f.toPath());
 		int d0 = 0;
 		int[] res;
 		int c = 0;
+		byte[] pattern = bytes("`~(<p>)~(</p>)`");
 		while (d0 >= 0 && d0 < data.length) {
-			res = match(bytes("`~(<p>)~(</p>)`"), data, d0);
+			res = match(pattern, data, d0);
 			d0 = res[1];
 			c++;
 		}
 		assertEquals(7, c);
+	}
+	
+	@Test
+	public void searchTextInLargeFile() throws IOException {
+		File f = new File("mtent12.txt");
+		if (!f.exists())
+			return;
+		byte[] data = Files.readAllBytes(f.toPath());
+		int d0 = 0;
+		int[] res;
+		int c = 0;
+		int dx = d0;
+		byte[] pattern = bytes("`~(Huck@+)`");
+		while (d0 >= 0 && d0 < data.length) {
+			res = match(pattern, data, d0);
+			d0 = res[1];
+			dx = d0;
+			c++;
+		}
+		assertEquals(84, c);
 	}
 	
 	@Test

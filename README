@@ -75,3 +75,5 @@ EXAMPLES
 ~(Foo)            searching for "Foo" (e.g. in a file)
 ~(<h#>)           searching for "<h0>" to "<h9>"
 ~(<h{1-6}>)       searching for "<h1>" to "<h6>"
+~(Foo~(Bar))      searching for "Foo"s followed by "Bar"s
+

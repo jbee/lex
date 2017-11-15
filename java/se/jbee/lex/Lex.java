@@ -181,7 +181,8 @@ public final class Lex {
 	 * their lower case variant 64-95.
 	 */
 
-	private static int skip(byte[] pattern, int pm0, long mask, int pm,	byte[] data, int dn) {
+	private static int skip(byte[] pattern, int pm0, long mask, int pm,	byte[] data, int d0) {
+		int dn = d0;
 		final int len = pm - pm0;
 		final byte start = pattern[pm0];
 		if (len == 1) {
@@ -195,7 +196,7 @@ public final class Lex {
 			if (dn < data.length) {
 				int c = len;
 				int dx = dn;
-				while (c-- > 0 && dx > 0 && data[dx] != start) dx--;
+				while (c-- > 0 && dx > d0 && data[dx] != start) dx--;
 				if (data[dx] == start) {
 					c = 0;
 					while (c < len && dx < data.length && data[dx++] == pattern[pm0+c]) c++;
@@ -232,7 +233,7 @@ public final class Lex {
 	}
 	
 	private static int shift(byte b) {
-		return b >= 'a' ? (b & 0xDF)-32 : b-32;
+		return b >= '`' ? (b & 0xDF)-32 : b-32;
 	}
 
 }
