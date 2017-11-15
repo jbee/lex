@@ -263,6 +263,14 @@ public class TestLex {
 		assertFullMatch("[abc]x", "x");
 		assertFullMatch("[abc]x", "abcx");
 	}
+	
+	@Test
+	public void matchOptionSet() {
+		assertFullMatch("a[b{x[]}]c", "ac");
+		assertFullMatch("a[b{x[]}]c", "abxc");
+		assertFullMatch("a[b{x[]}]c", "ab[c");
+		assertFullMatch("a[b{x[]}]c", "ab]c");
+	}
 
 	@Test
 	public void matchOptionPlus() {

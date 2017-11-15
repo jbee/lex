@@ -95,9 +95,15 @@ public final class Lex {
 					if (op == '(') {
 						return res; // mismatch for (...)
 					}
-					//TODO skipping fails when a set in the block contains ]
-					int level = 1;
-					while (level > 0 && pn < pattern.length) { if (pattern[pn] == '[') level++; if (pattern[pn++] ==']') level--; } // skip rest of an optional block
+					// skip rest of an optional block 
+					int level = 1; boolean set = false;
+					while (level > 0 && pn < pattern.length) { 
+						if (!set) {
+							if (pattern[pn] == '[') level++; if (pattern[pn++] ==']') level--;
+						} else {
+							if (pattern[pn] == '{' || pattern[pn++] == '}') set = !set;
+						}
+					} 
 				} else {
 					pn = (int)(res >> 32);
 					dn = (int)res;
@@ -118,29 +124,26 @@ public final class Lex {
 				p1 = pn-1;
 				boolean exclusive = pattern[pn] == '^';
 				if (exclusive) pn++;
-				c = data[dn++];
 				int pa = pn;
-				boolean done = false;
-				while (!done) {
-					final byte m = pattern[pn++];
-					// order of tests is important so that pn advances after end of a set
-					done =     m == '-' && pn-1 > pa && c <= pattern[pn++] && c > pattern[pn-3] // range
-							|| m == eos // end of set
-							|| eos == '{' && (c < 0)
-							|| m == c && (c != '-' || pn-1 == pa);  // match
-				}
-				if (pattern[pn-1] != eos) { // match (since we did not reach the end of the set)
-					if (exclusive)
-						return pos(p1, mismatch(dn-1));
-					if (rep) { // only jump to end if we don't know yet if there is a +
-						pn = p0; // performance optimization: to directly go to start of set instead of skipping to the end and letting + do it
-						//TODO perf. opt. loop within set directly until it does not match any longer
-					} else {
-						while (pattern[pn++] != eos); // jump to end of set when match found
+				do {
+					c = data[dn++];
+					boolean done = false;
+					while (!done) {
+						final byte m = pattern[pn++];
+						// order of tests is important so that pn advances after end of a set
+						done =     m == '-' && pn-1 > pa && c <= pattern[pn++] && c > pattern[pn-3] // range
+								|| m == eos // end of set
+								|| eos == '{' && (c < 0)
+								|| m == c && (c != '-' || pn-1 == pa);  // match
 					}
-				} else if (!exclusive) {
-					return pos(p1, mismatch(dn-1));
-				}
+					boolean match = pattern[pn-1] != eos; // match (since we did not reach the end of the set)
+					if (match == exclusive) 
+						return pos(p1, mismatch(dn-1));
+					if (match && !rep) { // only jump to end on match and no + invocation (no match is at the end)
+						while (pattern[pn++] != eos);
+					}
+					if (rep) pn = pa; // keep matching the set on +
+				} while (rep && dn < data.length);
 				break;
 			default: // literals:
 				if (op == end)
