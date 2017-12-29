@@ -4,9 +4,9 @@
 ▓   ▓   ▓ ▓
 ▓▓▓ ▓▓▓ ▓ ▓ Linear expressions
 
-Pattern matching with a tiny bytecode instructed matching machine.
+Shortest match pattern matching with a tiny bytecode instructed matching machine.
 
-Docs      http://jbee.github.io/lex/
+Spec      http://jbee.github.io/lex/
 Feedback  http://github.com/jbee/lex/issues
 
 Copyright (c) 2017 Jan Bernitt
@@ -25,8 +25,8 @@ SETS         {...}, }...{
 
 {abc}        a set of bytes "a","b" and "c"
 {^abc}       a set of any byte but "a","b" and "c"
-{a-c}:       a set of "a", "b" and "c" given as a range
-}a-c{:       range of "a" to "c" and *all* non ASCII bytes
+{a-c}        a set of "a", "b" and "c" given as a range
+}a-c{        range of "a" to "c" and *all* non ASCII bytes
 
 
 SPECIAL SETS
