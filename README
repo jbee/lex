@@ -4,7 +4,7 @@
 ▓   ▓   ▓ ▓
 ▓▓▓ ▓▓▓ ▓ ▓ Linear expressions
 
-Shortest match pattern matching with a tiny bytecode instructed matching machine.
+First match pattern matching with a tiny bytecode instructed matching machine.
 
 Spec      http://jbee.github.io/lex/
 Feedback  http://github.com/jbee/lex/issues
