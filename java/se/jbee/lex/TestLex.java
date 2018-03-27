@@ -9,7 +9,6 @@ import static se.jbee.lex.Lex.mismatch;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.junit.Test;
@@ -28,13 +27,13 @@ public class TestLex {
 		assertFalse(isLiteral((byte)31));
 		assertFalse(isLiteral((byte)-1));
 	}
-	
+
 	@Test
 	public void searchText() {
 		int[] res = match("`~(Twain)~(Huck)`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
 		assertEquals(49, res[1]);
 	}
-	
+
 	@Test
 	public void searchTextCombination() {
 		int[] res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
@@ -42,7 +41,7 @@ public class TestLex {
 		res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Hu.");
 		assertEquals(-1, res[1]);
 	}
-	
+
 	/**
 	 * requires "ant jar" to have the file downloaded
 	 **/
@@ -63,7 +62,7 @@ public class TestLex {
 		}
 		assertEquals(7, c);
 	}
-	
+
 	@Test
 	public void searchTextInLargeFile() throws IOException {
 		File f = new File("mtent12.txt");
@@ -83,7 +82,7 @@ public class TestLex {
 		}
 		assertEquals(84, c);
 	}
-	
+
 	@Test
 	public void matchNumberExamples() {
 		// dates
@@ -115,7 +114,7 @@ public class TestLex {
 		assertFullMatch("[#+][{_,}###]+.#+", ".01");
 		assertFullMatch("[#+][{_,}###]+.#+", "0.0");
 		assertFullMatch("[#+][{_,}###]+.#+", "12_345.9");
-		
+
 		String anyNumber = "{.0-9}[{.xb0-9}[{0-9A-Fa-f_}+][.#+]][{dDfFlL}]";
 		assertFullMatch(anyNumber, "12");
 		assertFullMatch(anyNumber, "13L");
@@ -263,7 +262,7 @@ public class TestLex {
 		assertFullMatch("[abc]x", "x");
 		assertFullMatch("[abc]x", "abcx");
 	}
-	
+
 	@Test
 	public void matchOptionSet() {
 		assertFullMatch("a[b{x[]}]c", "ac");
@@ -307,10 +306,10 @@ public class TestLex {
 
 	@Test
 	public void matchGroupNestedPlus() {
-		assertFullMatch("(a(b(c)+)+)+", "abc");
-		assertFullMatch("(a(b(c)+)+)+", "abcabc");
-		assertFullMatch("(a(b(c)+)+)+", "abccbc");
-		assertFullMatch("(a(b+(cd)+)+)+", "abbcdcdabcd");
+		assertFullMatch("(a(b(c)+)+)+x", "abcx");
+		assertFullMatch("(a(b(c)+)+)+x", "abcabcx");
+		assertFullMatch("(a(b(c)+)+)+x", "abccbcx");
+		assertFullMatch("(a(b+(cd)+)+)+x", "abbcdcdabcdx");
 	}
 
 	@Test
@@ -319,7 +318,7 @@ public class TestLex {
 		assertFullMatch("{a-z}", "a");
 		assertFullMatch("{a-z}", "z");
 	}
-	
+
 	@Test
 	public void matchSetInclusingNonASCII() {
 		assertFullMatch("}a{+b", "aab");
@@ -469,22 +468,22 @@ public class TestLex {
 	public void matchNonWhitespaceSetPlus() {
 		assertFullMatch("^+", "azAZ:-,;*()[]{}?!<>|&%@");
 	}
-	
+
 	@Test
 	public void matchWhitespaceSetPlus() {
 		assertFullMatch("_+x", " \t\n\rx");
 	}
-	
+
 	@Test
 	public void matchNL() {
-		assertFullMatch("$$", "\n\r");
+		assertFullMatch(";;", "\n\r");
 	}
-	
+
 	@Test
 	public void mismatchNL() {
-		assertNoMatchAt("$", " ", 0);
-		assertNoMatchAt("$", "\t", 0);
-		assertNoMatchAt("$", "a", 0);
+		assertNoMatchAt(";", " ", 0);
+		assertNoMatchAt(";", "\t", 0);
+		assertNoMatchAt(";", "a", 0);
 	}
 
 	@Test
@@ -504,10 +503,30 @@ public class TestLex {
 		assertFullMatch("******", "&|%#@~");
 		assertFullMatch("****",   " \t\n\r");
 	}
-	
+
+	@Test
+	public void matchNotNext() {
+		assertFullMatch("!ac", "bc");
+		assertFullMatch("!#c", "bc");
+		assertFullMatch("!_c", "bc");
+	}
+
+	@Test
+	public void mismatchNotNext() {
+		assertNoMatchAt("!ac", "ac", 0);
+		assertNoMatchAt("!#c", "1c", 0);
+		assertNoMatchAt("!_c", " c", 0);
+	}
+
+	@Test
+	public void matchNotNextPlus() {
+		assertFullMatch("(bx)+a", "bxbxbxa");
+		assertFullMatch("(!ax)+a", "bxbxbxa");
+	}
+
 	@Test
 	public void matchAnyNonASCIIByte() {
-		int[] res = match(new byte[] {'`','!','+', '`'}, new byte[] {-1, -42, -127}, 0);
+		int[] res = match(new byte[] {'`','$','+', '`'}, new byte[] {-1, -42, -127}, 0);
 		assertEquals(3, res[1]);
 	}
 
@@ -541,7 +560,7 @@ public class TestLex {
 		long res = Lex.match(pattern, 0, input, d0);
 		return new int[] { (int)(res >> 32), (int)res };
 	}
-	
+
 	private static byte[] bytes(String s) {
 		return s.getBytes(UTF_8);
 	}
