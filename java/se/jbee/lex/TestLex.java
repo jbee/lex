@@ -9,7 +9,6 @@ import static se.jbee.lex.Lex.mismatch;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.junit.Test;
@@ -28,13 +27,13 @@ public class TestLex {
 		assertFalse(isLiteral((byte)31));
 		assertFalse(isLiteral((byte)-1));
 	}
-	
+
 	@Test
 	public void searchText() {
 		int[] res = match("`~(Twain)~(Huck)`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
 		assertEquals(49, res[1]);
 	}
-	
+
 	@Test
 	public void searchTextCombination() {
 		int[] res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
@@ -42,7 +41,7 @@ public class TestLex {
 		res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Hu.");
 		assertEquals(-1, res[1]);
 	}
-	
+
 	/**
 	 * requires "ant jar" to have the file downloaded
 	 **/
@@ -63,7 +62,7 @@ public class TestLex {
 		}
 		assertEquals(7, c);
 	}
-	
+
 	@Test
 	public void searchTextInLargeFile() throws IOException {
 		File f = new File("mtent12.txt");
@@ -83,7 +82,7 @@ public class TestLex {
 		}
 		assertEquals(84, c);
 	}
-	
+
 	@Test
 	public void matchNumberExamples() {
 		// dates
@@ -115,7 +114,7 @@ public class TestLex {
 		assertFullMatch("[#+][{_,}###]+.#+", ".01");
 		assertFullMatch("[#+][{_,}###]+.#+", "0.0");
 		assertFullMatch("[#+][{_,}###]+.#+", "12_345.9");
-		
+
 		String anyNumber = "{.0-9}[{.xb0-9}[{0-9A-Fa-f_}+][.#+]][{dDfFlL}]";
 		assertFullMatch(anyNumber, "12");
 		assertFullMatch(anyNumber, "13L");
@@ -263,13 +262,13 @@ public class TestLex {
 		assertFullMatch("[abc]x", "x");
 		assertFullMatch("[abc]x", "abcx");
 	}
-	
+
 	@Test
 	public void matchOptionSet() {
-		assertFullMatch("a[b{x[]}]c", "ac");
-		assertFullMatch("a[b{x[]}]c", "abxc");
-		assertFullMatch("a[b{x[]}]c", "ab[c");
-		assertFullMatch("a[b{x[]}]c", "ab]c");
+		assertFullMatch("a[b{x[]}]", "a");
+		assertFullMatch("a[b{x[]}]", "abx");
+		assertFullMatch("a[b{x[]}]", "ab[");
+		assertFullMatch("a[b{x[]}]", "ab]");
 	}
 
 	@Test
@@ -300,6 +299,50 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchGroupPlus() {
+		assertFullMatch("(a)+", "a");
+		assertFullMatch("(a)+", "aa");
+		assertFullMatch("(a)+", "aaa");
+		assertFullMatch("(a)+", "aaaa");
+		assertFullMatch("(a)+", "aaaaa");
+		assertFullMatch("(bb)+", "bb");
+		assertFullMatch("(bb)+", "bbbb");
+		assertFullMatch("(bb)+", "bbbbbb");
+		assertFullMatch("(bb)+", "bbbbbbbb");
+		assertFullMatch("(bb)+", "bbbbbbbbbb");
+	}
+
+	@Test
+	public void matchOptionalGroupPlus() {
+		assertFullMatch("[a]+", "");
+		assertFullMatch("[a]+", "a");
+		assertFullMatch("[a]+", "aa");
+		assertFullMatch("[a]+", "aaa");
+		assertFullMatch("[a]+", "aaaa");
+		assertFullMatch("[a]+", "aaaaa");
+		assertFullMatch("[bb]+", "");
+		assertFullMatch("[bb]+", "bb");
+		assertFullMatch("[bb]+", "bbbb");
+		assertFullMatch("[bb]+", "bbbbbb");
+		assertFullMatch("[bb]+", "bbbbbbbb");
+		assertFullMatch("[bb]+", "bbbbbbbbbb");
+	}
+
+	@Test
+	public void matchSetPlus() {
+		assertFullMatch("{a}+", "aaa");
+		assertFullMatch("{a}+", "a");
+		assertFullMatch("{a}+", "aa");
+		assertFullMatch("{a}+", "aaaa");
+		assertFullMatch("{a}+", "aaaaa");
+		assertFullMatch("{ab}+", "ab");
+		assertFullMatch("{ab}+", "bb");
+		assertFullMatch("{ab}+", "aa");
+		assertFullMatch("{ab}+", "abba");
+		assertFullMatch("{ab}+", "baab");
+	}
+
+	@Test
 	public void matchGroupNested() {
 		assertFullMatch("(a(b(c)))", "abc");
 		assertFullMatch("(ax(bx(cx)))", "axbxcx");
@@ -311,6 +354,7 @@ public class TestLex {
 		assertFullMatch("(a(b(c)+)+)+", "abcabc");
 		assertFullMatch("(a(b(c)+)+)+", "abccbc");
 		assertFullMatch("(a(b+(cd)+)+)+", "abbcdcdabcd");
+		assertFullMatch("(a(b+(cd)+)+)+", "abbbbbbcdcdcdcdcdabcd");
 	}
 
 	@Test
@@ -319,7 +363,7 @@ public class TestLex {
 		assertFullMatch("{a-z}", "a");
 		assertFullMatch("{a-z}", "z");
 	}
-	
+
 	@Test
 	public void matchSetInclusingNonASCII() {
 		assertFullMatch("}a{+b", "aab");
@@ -469,17 +513,17 @@ public class TestLex {
 	public void matchNonWhitespaceSetPlus() {
 		assertFullMatch("^+", "azAZ:-,;*()[]{}?!<>|&%@");
 	}
-	
+
 	@Test
 	public void matchWhitespaceSetPlus() {
 		assertFullMatch("_+x", " \t\n\rx");
 	}
-	
+
 	@Test
 	public void matchNL() {
 		assertFullMatch("$$", "\n\r");
 	}
-	
+
 	@Test
 	public void mismatchNL() {
 		assertNoMatchAt("$", " ", 0);
@@ -504,7 +548,7 @@ public class TestLex {
 		assertFullMatch("******", "&|%#@~");
 		assertFullMatch("****",   " \t\n\r");
 	}
-	
+
 	@Test
 	public void matchAnyNonASCIIByte() {
 		int[] res = match(new byte[] {'`','!','+', '`'}, new byte[] {-1, -42, -127}, 0);
@@ -541,7 +585,7 @@ public class TestLex {
 		long res = Lex.match(pattern, 0, input, d0);
 		return new int[] { (int)(res >> 32), (int)res };
 	}
-	
+
 	private static byte[] bytes(String s) {
 		return s.getBytes(UTF_8);
 	}

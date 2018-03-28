@@ -95,15 +95,15 @@ public final class Lex {
 					if (op == '(') {
 						return res; // mismatch for (...)
 					}
-					// skip rest of an optional block 
+					// skip rest of an optional block
 					int level = 1; boolean set = false;
-					while (level > 0 && pn < pattern.length) { 
+					while (level > 0 && pn < pattern.length) {
 						if (!set) {
 							if (pattern[pn] == '[') level++; if (pattern[pn++] ==']') level--;
 						} else {
 							if (pattern[pn] == '{' || pattern[pn++] == '}') set = !set;
 						}
-					} 
+					}
 				} else {
 					pn = (int)(res >> 32);
 					dn = (int)res;
@@ -114,8 +114,12 @@ public final class Lex {
 					pn = p0;
 				} else {
 					c = pattern[pn-2];
-					dn = (int)match(pattern, c == '}' || c == '{' || c == ')' || c == ']' ? p1 : pn-2, data, dn, rend, true, maxOps);
-					if (dn < 0) dn = mismatch(dn); // reverses a mismatch by applying function again
+					boolean block = c == '}' || c == '{' || c == ')' || c == ']';
+					dn = (int)match(pattern, block ? p1 : pn-2, data, dn, rend, true, maxOps);
+					if (dn < 0) {
+						dn = mismatch(dn); // reverses a mismatch by applying function again
+					} else if (block)
+						pn--;
 				}
 				break;
 			case '{': // set (of symbols, excluding non ASCII bytes):
@@ -137,7 +141,7 @@ public final class Lex {
 								|| m == c && (c != '-' || pn-1 == pa);  // match
 					}
 					boolean match = pattern[pn-1] != eos; // match (since we did not reach the end of the set)
-					if (match == exclusive) 
+					if (match == exclusive)
 						return pos(p1, mismatch(dn-1));
 					if (match && !rep) { // only jump to end on match and no + invocation (no match is at the end)
 						while (pattern[pn++] != eos);
@@ -155,27 +159,27 @@ public final class Lex {
 		}
 		return pos(pn, dn);
 	}
-	
+
 	private static long pos(int pn, int dn) {
 		return (long)pn << 32 | dn & 0xFFFFFFFFL;
 	}
-	
+
 	static int mismatch(int pos) {
 		return -pos-1;
 	}
-	
+
 	private static boolean isWS(byte c) {
 		return c == ' ' || c == '\t' || isNL(c);
 	}
-	
+
 	private static boolean isNL(byte c) {
 		return c == '\n' || c == '\r';
 	}
-	
+
 	/*
 	 * Everything below is purely a performance optimization for scanning to
 	 * find a literal sequence.
-	 * 
+	 *
 	 * The idea is this: if ~ is followed by a literal or literal sequence or a
 	 * group (...) starting with a literal we can hop forward checking every
 	 * n-th byte to see if it is one of the bytes in the literal sequence
@@ -216,7 +220,7 @@ public final class Lex {
 		while (pattern[pn] == '(') pn++;
 		return isLiteral(pattern[pn]) ? pn : -1;
 	}
-	
+
 	private static final long OPS_MASK = opsMask();
 	public static boolean isLiteral(byte b) {
 		return b > 0 && ((1L << shift(b)) & OPS_MASK) == 0L;
@@ -234,7 +238,7 @@ public final class Lex {
 		}
 		return mask;
 	}
-	
+
 	private static int shift(byte b) {
 		return b >= '`' ? (b & 0xDF)-32 : b-32;
 	}
