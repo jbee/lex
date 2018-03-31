@@ -35,9 +35,9 @@ SPECIAL SETS
 @ = {a-zA-Z} any ASCII letter
 _            any ASCII whitespace character
 ^            any byte that is not a ASCII whitespace character
-! = }{       any non ASCII byte (1xxx xxxx)
+$ = }{       any non ASCII byte (1xxx xxxx)
 *            any single byte
-$            ASCII new line (\n or \r)
+;            ASCII new line (\n or \r)
 
 
 REPETITION   x+

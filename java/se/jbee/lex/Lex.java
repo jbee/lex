@@ -42,7 +42,7 @@ public final class Lex {
 	public static long match(byte[] pattern, int p0, byte[] data, int d0, int pPlus, int maxOps) {
 		int pn = p0;
 		int dn = d0;
-		int dr = d0;   // dn result (might be a mismatch)
+		int dr = d0;
 		int pPlus0 = -1; // position from where to repeat (last op in loop on this level)
 		boolean plussed = pPlus >= 0;
 		while (pn < pattern.length && dn < data.length && maxOps-- != 0) {
@@ -55,10 +55,10 @@ public final class Lex {
 			default: if (op != data[dn++])   return pos(pn, dr); break;
 			// special sets...
 			case '*': dn++; break;
-			case '!': if (data[dn++] >= 0)   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
+			case '$': if (data[dn++] >= 0)   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
 			case '^': if (isWS(data[dn++]))  return pos(pn, dr); break;
 			case '_': if (!isWS(data[dn++])) return pos(pn, dr); break;
-			case '$': if (!isNL(data[dn++])) return pos(pn, dr); break;
+			case ';': if (!isNL(data[dn++])) return pos(pn, dr); break;
 			          // range test use: (unsigned)(number-lower) <= (upper-lower)
 			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, dr); break;
 			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pn, dr); break;

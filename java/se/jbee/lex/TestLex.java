@@ -1,5 +1,6 @@
 package se.jbee.lex;
 
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -11,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestLex {
@@ -556,14 +558,14 @@ public class TestLex {
 
 	@Test
 	public void matchNL() {
-		assertFullMatch("$$", "\n\r");
+		assertFullMatch(";;", "\n\r");
 	}
 
 	@Test
 	public void mismatchNL() {
-		assertNoMatchAt("$", " ", 0);
-		assertNoMatchAt("$", "\t", 0);
-		assertNoMatchAt("$", "a", 0);
+		assertNoMatchAt(";", " ", 0);
+		assertNoMatchAt(";", "\t", 0);
+		assertNoMatchAt(";", "a", 0);
 	}
 
 	@Test
@@ -586,7 +588,14 @@ public class TestLex {
 
 	@Test
 	public void matchAnyNonASCIIByte() {
-		int[] res = match(new byte[] {'`','!','+', '`'}, new byte[] {-1, -42, -127}, 0);
+		int[] res = match("`$+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
+		assertEquals(3, res[1]);
+	}
+
+	@Test
+	@Ignore //TODO
+	public void matchNonAsciiEmptySet() {
+		int[] res = match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
 		assertEquals(3, res[1]);
 	}
 
