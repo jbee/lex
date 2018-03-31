@@ -96,10 +96,9 @@ public final class Lex {
 				break;
 			case '{': // set (of symbols, excluding non ASCII bytes):
 			case '}': // set (including non ASCII bytes)
-				dn = set(pattern, pOp, data, dn, plussed && p0 == pOp);
-				if (dn < 0)
-					return pos(pn, plussed && p0 == pOp ? dn : dr); // mismatch
-				pn = skipBeyondSet(pattern, pOp);
+				if (!setContains(pattern, pOp, data[dn++]))
+					return pos(pn, dr); // mismatch
+				pn = plussed && p0 == pOp ? pPlus : skipBeyondSet(pattern, pOp);
 				break;
 			}
 			pPlus0 = pOp;
@@ -107,28 +106,22 @@ public final class Lex {
 		return pos(pn, dn);
 	}
 
-	private static int set(byte[] pattern, int pn, byte[] data, int dn, boolean plussed) {
+	private static boolean setContains(byte[] pattern, int pn, int chr) {
 		final int eos = pattern[pn++] == '{' ? '}' : '{';
 		boolean nonAscii = eos == '{';
 		boolean exclusive = pattern[pn] == '^';
 		if (exclusive) pn++;
+		boolean done = false;
 		int p1 = pn;
-		do {
-			pn = p1; // for rep: keep matching the set on +
-			byte chr = data[dn++];
-			boolean done = false;
-			while (!done) {
-				final byte m = pattern[pn++];
-				// order of tests is important so that pn advances after end of a set
-				done =     m == '-' && pn-1 > p1 && chr <= pattern[pn++] && chr > pattern[pn-3] // range
-						|| m == eos // end of set
-						|| nonAscii && (chr < 0)
-						|| m == chr && (chr != '-' || pn-1 == p1);  // match
-			}
-			if ((pattern[pn-1] != eos) == exclusive) // match (as long as we did not reach the end of the set)
-				return mismatch(dn-1);
-		} while (plussed && dn < data.length);
-		return dn;
+		while (!done) {
+			final byte m = pattern[pn++];
+			// order of tests is important so that pn advances after end of a set
+			done =     m == '-' && pn-1 > p1 && chr <= pattern[pn++] && chr > pattern[pn-3] // range
+					|| m == eos // end of set
+					|| nonAscii && (chr < 0)
+					|| m == chr && (chr != '-' || pn-1 == p1);  // match
+		}
+		return ((pattern[pn-1] == eos) == exclusive);
 	}
 
 	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
