@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 public final class Lex {
 
 	public static long match(byte[] pattern, int p0, byte[] data, int d0) {
-		return match(pattern, p0+1, data, d0, pattern[p0], false, -1);
+		return match(pattern, p0, data, d0, -1, -1);
 	}
 
 	/**
@@ -31,137 +31,143 @@ public final class Lex {
 	 *            the content to match
 	 * @param d0
 	 *            starting position in the content
-	 * @param end
-	 *            the bytes that marks the end of matching
-	 * @param rep
-	 *            true, if the match was called from a repetition '+' (so it is
-	 *            "optional")
+	 * @param pPlus
+	 *            pattern position for the + repeated currently, or -1 if no repeat
 	 * @param maxOps
 	 *            maximal number of operations evaluated before returning
 	 * @return end positions (pn,dn) implemented as long to make the algorithm
 	 *         allocation free. pn is next position in pattern, dn next position
 	 *         in data after the match. On mismatch dn is (-position -1).
 	 */
-	public static long match(byte[] pattern, int p0, byte[] data, int d0, byte end, boolean rep, int maxOps) {
+	public static long match(byte[] pattern, int p0, byte[] data, int d0, int pPlus, int maxOps) {
 		int pn = p0;
 		int dn = d0;
-		int pRep = p0; // position from where to repeat
-		byte endRep = '+';
+		int dr = d0;   // dn result (might be a mismatch)
+		int pPlus0 = -1; // position from where to repeat (last op in loop on this level)
+		boolean plussed = pPlus >= 0;
 		while (pn < pattern.length && dn < data.length && maxOps-- != 0) {
+			if (!plussed)
+				dr = mismatch(dn);
+			int pOp = pn;
 			byte op  = pattern[pn++];
 			switch (op) {
+			// literals:
+			default: if (op != data[dn++])   return pos(pn, dr); break;
+			// special sets...
 			case '*': dn++; break;
-			case '$': if (data[dn++] >= 0) return pos(pn, mismatch(dn-1)); break;
-			case '^': if (isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break;
-			case '_': if (!isWS(data[dn++])) return pos(pn, mismatch(dn-1)); break;
-			case ';': if (!isNL(data[dn++])) return pos(pn, mismatch(dn-1)); break;
-			// range test use: (unsigned)(number-lower) <= (upper-lower)
-			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, mismatch(dn-1)); break;
-			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pn, mismatch(dn-1)); break;
-			case '!': // not (single position)
-				long pndn = match(pattern, pn, data, dn, end, false, 1);
-				if ((int)pndn >= 0)
-					return pos(pn, mismatch(dn));
-				pn++; dn++; // skip the not matched part in both pattern and data
-				break;
-			case '~': // scan
-				pndn = scan(pattern, pn, data, dn, end);
-				if (pndn >= data.length)
-					return pos(pn, mismatch(dn));
-				dn = (int)pndn;
-				break;
+			case '!': if (data[dn++] >= 0)   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
+			case '^': if (isWS(data[dn++]))  return pos(pn, dr); break;
+			case '_': if (!isWS(data[dn++])) return pos(pn, dr); break;
+			case '$': if (!isNL(data[dn++])) return pos(pn, dr); break;
+			          // range test use: (unsigned)(number-lower) <= (upper-lower)
+			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, dr); break;
+			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pn, dr); break;
+			case ')':
+			case ']': if (pn != pPlus) return pos(pn, dn); break; // NOOP before the + right after
+			case '`': if (pOp > p0) return pos(pn, dn); break; // NOOP on first in block
 			case '(': // group:
 			case '[': // optional group:
-				pRep = pn;
-				endRep = (byte)(op == '(' ? ')' : ']');
-				pndn = match(pattern, pn, data, dn, endRep, false, maxOps == 0 ? -1 : maxOps);
-				if ((int)pndn < 0) {
-					if (op == '(')
-						return pndn; // mismatch for (...)
-					pn = skipToEndOfBlock(pattern, pn);
-				} else {
-					pn = (int)(pndn >> 32);
-					dn = (int)pndn;
+				if (!plussed || p0 != pOp) {
+					long pndn = match(pattern, pn, data, dn, -1, -1);
+					if ((int)pndn < 0) {
+						if (op == '(')
+							return plussed ? pos(dn, dr) : pndn ; // mismatch within a (...)
+						pn = skipBeyondOption(pattern, pn);
+					} else {
+						pn = (int)(pndn >> 32);
+						dn = (int)pndn;
+					}
 				}
 				break;
-			case '+': // repetition:
-				if (rep) {
-					pn = p0;
+			case '~': // scan
+				dn = scan(pattern, pn, data, dn);
+				if (dn >= data.length)
+					return pos(pn, dr);
+				break;
+			case '+': // repeat:
+				if (pOp == pPlus) { // reached same + again
+					pn = p0;        // go back
+					dr = dn;       // remember successful match position
 				} else {
-					op = pattern[pn-2];
-					dn = (int)match(pattern, op == '}' || op == '{' || op == ')' || op == ']' ? pRep : pn-2, data, dn, endRep, true, maxOps);
-					if (dn < 0) dn = mismatch(dn); // reverses a mismatch by applying function again
+					dn = (int)match(pattern, pPlus0, data, dn, pOp, maxOps);
+					if (dn < 0)
+						dn = mismatch(dn); // reverses a mismatch by applying function again (blocks return positive)
 				}
 				break;
 			case '{': // set (of symbols, excluding non ASCII bytes):
 			case '}': // set (including non ASCII bytes)
-				final int eos = op == '{' ? '}' : '{';
-				pRep = pn-1;
-				boolean exclusive = pattern[pn] == '^';
-				if (exclusive) pn++;
-				int xn = pn;
-				do {
-					op = data[dn++];
-					boolean done = false;
-					while (!done) {
-						final byte m = pattern[pn++];
-						// order of tests is important so that pn advances after end of a set
-						done =     m == '-' && pn-1 > xn && op <= pattern[pn++] && op > pattern[pn-3] // range
-								|| m == eos // end of set
-								|| eos == '{' && (op < 0)
-								|| m == op && (op != '-' || pn-1 == xn);  // match
-					}
-					boolean match = pattern[pn-1] != eos; // match (since we did not reach the end of the set)
-					if (match == exclusive)
-						return pos(pRep, mismatch(dn-1));
-					if (match && !rep) // only jump to end on match and no + invocation (no match is at the end)
-						while (pattern[pn++] != eos);
-					if (rep) pn = xn; // keep matching the set on +
-				} while (rep && dn < data.length);
+				dn = set(pattern, pOp, data, dn, plussed && p0 == pOp);
+				if (dn < 0)
+					return pos(pn, plussed && p0 == pOp ? dn : dr); // mismatch
+				pn = skipBeyondSet(pattern, pOp);
 				break;
-			default: // literals:
-				if (op == end)
-					return pos(pn, dn);
-				if (op != data[dn])
-					return pos(pn, mismatch(dn));
-				dn++;
 			}
+			pPlus0 = pOp;
 		}
 		return pos(pn, dn);
 	}
 
-	private static int scan(byte[] pattern, int pn, byte[] data, int dn, byte end) {
-		int dnf = -1;
-		/* perf optimization start */
-		int pm0 = maskPosition(pattern, pn); // find literal position (-1 if no such exists)
-		int pm = pm0;
-		long mask = 0L;
-		if (pm0 >= 0) {
-			if (pattern[pn] == '(') {
-				while (pm < pattern.length && isLiteral(pattern[pm])) pm++;
-			} else {
-				pm++;
+	private static int set(byte[] pattern, int pn, byte[] data, int dn, boolean plussed) {
+		final int eos = pattern[pn++] == '{' ? '}' : '{';
+		boolean nonAscii = eos == '{';
+		boolean exclusive = pattern[pn] == '^';
+		if (exclusive) pn++;
+		int p1 = pn;
+		do {
+			pn = p1; // for rep: keep matching the set on +
+			byte chr = data[dn++];
+			boolean done = false;
+			while (!done) {
+				final byte m = pattern[pn++];
+				// order of tests is important so that pn advances after end of a set
+				done =     m == '-' && pn-1 > p1 && chr <= pattern[pn++] && chr > pattern[pn-3] // range
+						|| m == eos // end of set
+						|| nonAscii && (chr < 0)
+						|| m == chr && (chr != '-' || pn-1 == p1);  // match
 			}
-			mask = mask(pattern, pm0, pm); // make literal mask
+			if ((pattern[pn-1] != eos) == exclusive) // match (as long as we did not reach the end of the set)
+				return mismatch(dn-1);
+		} while (plussed && dn < data.length);
+		return dn;
+	}
+
+	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
+		int dnf = -1;
+		int m0 = maskPosition(pattern, pn); // find literal position (-1 if no such exists)
+		int mn = m0;
+		long mask = 0L;
+		if (m0 >= 0) {
+			if (pattern[pn] == '(') {
+				while (mn < pattern.length && isLiteral(pattern[mn])) mn++;
+			} else {
+				mn++;
+			}
+			mask = mask(pattern, m0, mn); // make literal mask
 		}
 		do {
-			if (pm0 > 0)
-				dn = skip(pattern, pm0, mask, pm, data, dn);
-			/* perf optimization end */
+			if (m0 > 0)
+				dn = hop(pattern, m0, mask, mn, data, dn);
 			if (dn < data.length)
-				dnf = (int)match(pattern, pn, data, dn, end, false, 1);
+				dnf = (int)match(pattern, pn, data, dn, -1, 1);
 		} while (dnf < 0 && ++dn < data.length);
 		return dn;
 	}
 
-	private static int skipToEndOfBlock(byte[] pattern, int pn) {
+	private static int skipBeyondSet(byte[] pattern, int pn) {
+		int eos = pattern[pn++] == '{' ? '}' : '{';
+		while (pn < pattern.length && pattern[pn++] != eos); // forward pn after end of set
+		return pn;
+	}
+
+	private static int skipBeyondOption(byte[] pattern, int pn) {
 		int level = 1;
-		boolean withinSet = false;
 		while (level > 0 && pn < pattern.length) {
-			if (!withinSet) {
-				if (pattern[pn] == '[') level++; if (pattern[pn++] == ']') level--;
+			if (pattern[pn] == '{' || pattern[pn] == '}') {
+				pn = skipBeyondSet(pattern, pn);
 			} else {
-				if (pattern[pn] == '{' || pattern[pn++] == '}') withinSet = !withinSet;
+				if (pattern[pn] == '[') level++;
+				if (pattern[pn] == ']') level--;
+				pn++;
 			}
 		}
 		return pn;
@@ -195,10 +201,10 @@ public final class Lex {
 	 * their lower case variant 64-95.
 	 */
 
-	private static int skip(byte[] pattern, int pm0, long mask, int pm,	byte[] data, int d0) {
+	private static int hop(byte[] pattern, int m0, long mask, int mn, byte[] data, int d0) {
 		int dn = d0;
-		final int len = pm - pm0;
-		final byte start = pattern[pm0];
+		final int len = mn - m0;
+		final byte start = pattern[m0];
 		if (len == 1) {
 			while (dn < data.length && data[dn] != start) dn++;
 			return dn;
@@ -213,7 +219,7 @@ public final class Lex {
 				while (c-- > 0 && dx > d0 && data[dx] != start) dx--;
 				if (data[dx] == start) {
 					c = 0;
-					while (c < len && dx < data.length && data[dx++] == pattern[pm0+c]) c++;
+					while (c < len && dx < data.length && data[dx++] == pattern[m0+c]) c++;
 					if (c >= len)
 						return dx-len;
 				}

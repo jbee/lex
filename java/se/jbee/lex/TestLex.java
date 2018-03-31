@@ -72,12 +72,10 @@ public class TestLex {
 		int d0 = 0;
 		int[] res;
 		int c = 0;
-		int dx = d0;
 		byte[] pattern = bytes("`~(Huck@+)`");
 		while (d0 >= 0 && d0 < data.length) {
 			res = match(pattern, data, d0);
 			d0 = res[1];
-			dx = d0;
 			c++;
 		}
 		assertEquals(84, c);
@@ -131,18 +129,17 @@ public class TestLex {
 		assertFullMatch(anyNumber, "..0.0");
 	}
 
+	/**
+	 * single quoted for better readability of the example,
+	 * works likewise for double quotes
+	 **/
 	@Test
 	public void matchQuotedStrings() {
-		assertFullMatch("\"~\"", "\"abcd\"");
-		assertFullMatch("\"\"\"~(\"\"\")", "\"\"\"ab\"c\"d\"\"\"");
-		// or single quoted for better readability of the example
 		assertFullMatch("'~'", "'abcd'");
 		assertFullMatch("'''~(''')", "'''ab'c'd'''");
-		// also by using exclusive sets
-		assertFullMatch("'{^'}+'", "'abcd and d'");
-		// with escaping
-		assertFullMatch("\"~({^\\}\")", "\"ab\"");
-		assertFullMatch("\"~({^\\}\")", "\"ab\\\"c\"");
+		assertFullMatch("'{^'}+'", "'abcd and d'");  // by using exclusive sets
+		assertFullMatch("'~({^\\}')", "'ab'");       // with escaping
+		assertFullMatch("'~({^\\}')", "'ab\\'c'");
 	}
 
 	@Test
@@ -265,10 +262,10 @@ public class TestLex {
 
 	@Test
 	public void matchOptionSet() {
-		assertFullMatch("a[b{x[]}]c", "ac");
-		assertFullMatch("a[b{x[]}]c", "abxc");
-		assertFullMatch("a[b{x[]}]c", "ab[c");
-		assertFullMatch("a[b{x[]}]c", "ab]c");
+		assertFullMatch("a[b{x[]}]", "a");
+		assertFullMatch("a[b{x[]}]", "abx");
+		assertFullMatch("a[b{x[]}]", "ab[");
+		assertFullMatch("a[b{x[]}]", "ab]");
 	}
 
 	@Test
@@ -299,6 +296,67 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchGroupPlus() {
+		assertFullMatch("(a)+", "a");
+		assertFullMatch("(a)+", "aa");
+		assertFullMatch("(a)+", "aaa");
+		assertFullMatch("(a)+", "aaaa");
+		assertFullMatch("(a)+", "aaaaa");
+		assertFullMatch("(bb)+", "bb");
+		assertFullMatch("(bb)+", "bbbb");
+		assertFullMatch("(bb)+", "bbbbbb");
+		assertFullMatch("(bb)+", "bbbbbbbb");
+		assertFullMatch("(bb)+", "bbbbbbbbbb");
+	}
+
+	@Test
+	public void matchOptionalGroupPlus() {
+		assertFullMatch("[a]+", "");
+		assertFullMatch("[a]+", "a");
+		assertFullMatch("[a]+", "aa");
+		assertFullMatch("[a]+", "aaa");
+		assertFullMatch("[a]+", "aaaa");
+		assertFullMatch("[a]+", "aaaaa");
+		assertFullMatch("[bb]+", "");
+		assertFullMatch("[bb]+", "bb");
+		assertFullMatch("[bb]+", "bbbb");
+		assertFullMatch("[bb]+", "bbbbbb");
+		assertFullMatch("[bb]+", "bbbbbbbb");
+		assertFullMatch("[bb]+", "bbbbbbbbbb");
+	}
+
+	@Test
+	public void matchSetPlus() {
+		assertFullMatch("{a}+", "aa");
+		assertFullMatch("{a}+", "a");
+		assertFullMatch("{a}+", "aaa");
+		assertFullMatch("{a}+", "aaaa");
+		assertFullMatch("{a}+", "aaaaa");
+		assertFullMatch("{ab}+", "ab");
+		assertFullMatch("{ab}+", "bb");
+		assertFullMatch("{ab}+", "aa");
+		assertFullMatch("{ab}+", "abba");
+		assertFullMatch("{ab}+", "baab");
+	}
+
+	@Test
+	public void matchGroupWithSetPlus() {
+		assertMatchUpTo("(1{a-z}2)+", "1a21ab2", 3);
+		assertFullMatch("(1{a-z}2)+", "1a21a2");
+		assertFullMatch("(1{a-z}2)+[13]", "1a2");
+		assertFullMatch("(1{a-z}2)+[13]", "1a213");
+		assertFullMatch("(1{a-z}2)+[13]", "1a21b2");
+		assertFullMatch("(1{a-z}2)+[13]", "1a21b213");
+		assertFullMatch("({a-z}12)+", "a12");
+		assertFullMatch("({a-z}12)+", "a12b12");
+		assertFullMatch("({a-z}12)+", "z12r12m12");
+		assertFullMatch("(12{a-z}+)+", "12ab");
+		assertFullMatch("(12{a-z}+)+", "12ab12c");
+		assertFullMatch("(12{a-z}+)+", "12abc12cd");
+		assertFullMatch("(12{a-z}+)+", "12abc12cd12fff");
+	}
+
+	@Test
 	public void matchGroupNested() {
 		assertFullMatch("(a(b(c)))", "abc");
 		assertFullMatch("(ax(bx(cx)))", "axbxcx");
@@ -306,10 +364,11 @@ public class TestLex {
 
 	@Test
 	public void matchGroupNestedPlus() {
-		assertFullMatch("(a(b(c)+)+)+x", "abcx");
-		assertFullMatch("(a(b(c)+)+)+x", "abcabcx");
-		assertFullMatch("(a(b(c)+)+)+x", "abccbcx");
-		assertFullMatch("(a(b+(cd)+)+)+x", "abbcdcdabcdx");
+		assertFullMatch("(a(b(c)+)+)+", "abc");
+		assertFullMatch("(a(b(c)+)+)+", "abcabc");
+		assertFullMatch("(a(b(c)+)+)+", "abccbc");
+		assertFullMatch("(a(b+(cd)+)+)+", "abbcdcdabcd");
+		assertFullMatch("(a(b+(cd)+)+)+", "abbbbbbcdcdcdcdcdabcd");
 	}
 
 	@Test
@@ -415,7 +474,7 @@ public class TestLex {
 	}
 
 	@Test
-	public void matchFillDigit() {
+	public void matchScanDigit() {
 		assertFullMatch("a~#", "a0");
 		assertFullMatch("a~#", "axx1");
 		assertFullMatch("a~#", "ayyy9");
@@ -423,27 +482,48 @@ public class TestLex {
 	}
 
 	@Test
-	public void mismatchFillDigit() {
+	public void mismatchScanDigit() {
 		assertNoMatchAt("a~#", "aa", 1);
 	}
 
 	@Test
-	public void matchFillSet() {
+	public void matchScanSet() {
 		assertFullMatch("a~{b-z}", "a0b");
 		assertFullMatch("a~{b-z}", "a11z");
 	}
 
 	@Test
-	public void mismatchFill() {
+	public void mismatchScan() {
 		assertNoMatchAt("a~b", "ax", 1);
 		assertNoMatchAt("a~b", "axy", 1);
 	}
 
 	@Test
-	public void matchFillGroup() {
+	public void matchScanGroup() {
 		assertFullMatch("a~(bc)", "abc");
 		assertFullMatch("a~(bc)", "abdbc");
 		assertFullMatch("a~(bc)", "acxbc");
+	}
+
+	@Test
+	public void matchScanGroupPlus() {
+		assertFullMatch("a~(bc)+", "abc");
+		assertFullMatch("a~(bc)+", "abcbc");
+		assertFullMatch("a~(bc)+", "abdbc");
+		assertFullMatch("a~(bc)+", "acxbc");
+		assertFullMatch("a~(bc)+", "abdbcbc");
+		assertFullMatch("a~(bc)+", "acxbcbc");
+	}
+
+	@Test
+	public void matchScanPlus() {
+		assertFullMatch("a~b+c", "abc");
+		assertFullMatch("a~b+c", "axbc");
+		assertFullMatch("a~b+c", "axxbc");
+		assertFullMatch("a~b+c", "abbc");
+		assertFullMatch("a~b+c", "abbbc");
+		assertFullMatch("a~b+c", "axxbbc");
+		assertFullMatch("a~b+c", "axxxbbbc");
 	}
 
 	@Test
@@ -476,14 +556,14 @@ public class TestLex {
 
 	@Test
 	public void matchNL() {
-		assertFullMatch(";;", "\n\r");
+		assertFullMatch("$$", "\n\r");
 	}
 
 	@Test
 	public void mismatchNL() {
-		assertNoMatchAt(";", " ", 0);
-		assertNoMatchAt(";", "\t", 0);
-		assertNoMatchAt(";", "a", 0);
+		assertNoMatchAt("$", " ", 0);
+		assertNoMatchAt("$", "\t", 0);
+		assertNoMatchAt("$", "a", 0);
 	}
 
 	@Test
@@ -505,28 +585,8 @@ public class TestLex {
 	}
 
 	@Test
-	public void matchNotNext() {
-		assertFullMatch("!ac", "bc");
-		assertFullMatch("!#c", "bc");
-		assertFullMatch("!_c", "bc");
-	}
-
-	@Test
-	public void mismatchNotNext() {
-		assertNoMatchAt("!ac", "ac", 0);
-		assertNoMatchAt("!#c", "1c", 0);
-		assertNoMatchAt("!_c", " c", 0);
-	}
-
-	@Test
-	public void matchNotNextPlus() {
-		assertFullMatch("(bx)+a", "bxbxbxa");
-		assertFullMatch("(!ax)+a", "bxbxbxa");
-	}
-
-	@Test
 	public void matchAnyNonASCIIByte() {
-		int[] res = match(new byte[] {'`','$','+', '`'}, new byte[] {-1, -42, -127}, 0);
+		int[] res = match(new byte[] {'`','!','+', '`'}, new byte[] {-1, -42, -127}, 0);
 		assertEquals(3, res[1]);
 	}
 
