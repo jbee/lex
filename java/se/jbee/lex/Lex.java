@@ -52,13 +52,12 @@ public final class Lex {
 			byte op  = pattern[pn++];
 			switch (op) {
 			// literals:
-			default: if (op != data[dn++])   return pos(pn, dr); break;
+			default: if (op != data[dn++])   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
 			// special sets...
 			case '*': dn++; break;
-			case '$': if (data[dn++] >= 0)   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
 			case '^': if (isWS(data[dn++]))  return pos(pn, dr); break;
 			case '_': if (!isWS(data[dn++])) return pos(pn, dr); break;
-			case ';': if (!isNL(data[dn++])) return pos(pn, dr); break;
+			case '$': if (!isNL(data[dn++])) return pos(pn, dr); break;
 			          // range test use: (unsigned)(number-lower) <= (upper-lower)
 			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pn, dr); break;
 			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pn, dr); break;
@@ -109,6 +108,8 @@ public final class Lex {
 	private static boolean setContains(byte[] pattern, int pn, int chr) {
 		final int eos = pattern[pn++] == '{' ? '}' : '{';
 		boolean nonAscii = eos == '{';
+		if (pattern [pn] == '{')
+			return chr < 0;
 		boolean exclusive = pattern[pn] == '^';
 		if (exclusive) pn++;
 		boolean done = false;

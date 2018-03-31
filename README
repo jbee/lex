@@ -33,11 +33,10 @@ SPECIAL SETS
 
 # = {0-9}    any ASCII digit
 @ = {a-zA-Z} any ASCII letter
+$            any ASCII new line (\n or \r)
 _            any ASCII whitespace character
-^            any byte that is not a ASCII whitespace character
-$ = }{       any non ASCII byte (1xxx xxxx)
+^            any byte that is not an ASCII whitespace character
 *            any single byte
-;            ASCII new line (\n or \r)
 
 
 REPETITION   x+
@@ -56,7 +55,7 @@ SCANNING     ~x
 ~            skip until following set, group or literal matches
 
 
-Any other byte (not {}()[]#@^_$+~!*) is matched literally. 
+Any other byte (not {}()[]#@^_$+~*) is matched literally. 
 Sets can be used to match any of the instruction symbols literally, like {~}.
 
 

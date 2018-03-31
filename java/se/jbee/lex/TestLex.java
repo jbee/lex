@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestLex {
@@ -558,14 +557,14 @@ public class TestLex {
 
 	@Test
 	public void matchNL() {
-		assertFullMatch(";;", "\n\r");
+		assertFullMatch("$$", "\n\r");
 	}
 
 	@Test
 	public void mismatchNL() {
-		assertNoMatchAt(";", " ", 0);
-		assertNoMatchAt(";", "\t", 0);
-		assertNoMatchAt(";", "a", 0);
+		assertNoMatchAt("$", " ", 0);
+		assertNoMatchAt("$", "\t", 0);
+		assertNoMatchAt("$", "a", 0);
 	}
 
 	@Test
@@ -587,13 +586,6 @@ public class TestLex {
 	}
 
 	@Test
-	public void matchAnyNonASCIIByte() {
-		int[] res = match("`$+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
-		assertEquals(3, res[1]);
-	}
-
-	@Test
-	@Ignore //TODO
 	public void matchNonAsciiEmptySet() {
 		int[] res = match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
 		assertEquals(3, res[1]);
