@@ -634,7 +634,6 @@ public class TestLex {
 	private static void assertNoMatchAt(String pattern, String data, int pos) {
 		Match match = match("`"+pattern+"`", data);
 		assertEquals(mismatch(pos), match.dn);
-		System.out.println(match);
 	}
 
 	private static void assertMatchUpTo(String pattern, String data, int pos) {
