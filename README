@@ -58,7 +58,7 @@ SCANNING     ~x
 
 ESCAPING
 
-\            escape following byte to a literal (in sets ^ and - needs it)
+\            escape following byte to a literal (also in set)
 
 Sets can also be used to match most of the instruction symbols literally.
 For example {~} is similar to \~ or {\~}.
