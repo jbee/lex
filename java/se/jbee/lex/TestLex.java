@@ -2,6 +2,7 @@ package se.jbee.lex;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.fill;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -31,16 +32,16 @@ public class TestLex {
 
 	@Test
 	public void searchText() {
-		int[] res = match("`~(Twain)~(Huck)`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
-		assertEquals(49, res[1]);
+		Match match = match("`~(Twain)~(Huck)`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
+		assertEquals(49, match.dn);
 	}
 
 	@Test
 	public void searchTextCombination() {
-		int[] res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
-		assertEquals(49, res[1]);
-		res = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Hu.");
-		assertEquals(-1, res[1]);
+		Match match = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Huckleberry Finn.");
+		assertEquals(49, match.dn);
+		match = match("`~(Twain~(Huck))`", "The author is Mark Twain. The book is titled Hu.");
+		assertEquals(-1, match.dn);
 	}
 
 	/**
@@ -53,12 +54,12 @@ public class TestLex {
 			return;
 		byte[] data = Files.readAllBytes(f.toPath());
 		int d0 = 0;
-		int[] res;
+		Match match;
 		int c = 0;
 		byte[] pattern = bytes("`~(<p>)~(</p>)`");
 		while (d0 >= 0 && d0 < data.length) {
-			res = match(pattern, data, d0);
-			d0 = res[1];
+			match = match(pattern, data, d0);
+			d0 = match.dn;
 			c++;
 		}
 		assertEquals(7, c);
@@ -71,12 +72,12 @@ public class TestLex {
 			return;
 		byte[] data = Files.readAllBytes(f.toPath());
 		int d0 = 0;
-		int[] res;
+		Match match;
 		int c = 0;
 		byte[] pattern = bytes("`~(Huck@+)`");
 		while (d0 >= 0 && d0 < data.length) {
-			res = match(pattern, data, d0);
-			d0 = res[1];
+			match = match(pattern, data, d0);
+			d0 = match.dn;
 			c++;
 		}
 		assertEquals(84, c);
@@ -627,39 +628,86 @@ public class TestLex {
 
 	@Test
 	public void matchNonAsciiEmptySet() {
-		int[] res = match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
-		assertEquals(3, res[1]);
+		assertEquals(3, match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0).dn);
 	}
 
 	private static void assertNoMatchAt(String pattern, String data, int pos) {
-		int[] res = match("`"+pattern+"`", data);
-		assertEquals(mismatch(pos), res[1]);
+		Match match = match("`"+pattern+"`", data);
+		assertEquals(mismatch(pos), match.dn);
+		System.out.println(match);
 	}
 
 	private static void assertMatchUpTo(String pattern, String data, int pos) {
-		int[] res = match("`"+pattern+"`", data);
-		assertEquals(pos, res[1]);
+		assertEquals(pos, match("`"+pattern+"`", data).dn);
 	}
 
+	/**
+	 * If a pattern end with groups or repetitions their positions might not be
+	 * passed when data is fully processed.
+	 *
+	 * How do we know the full pattern matched?
+	 * 1) We add a literal at the end to both pattern and data (see mark below)
+	 * 2) We add extra byte at the end of data to make sure in pattern causes ` exit
+	 */
 	private static void assertFullMatch(String pattern, String data) {
-		String mark = " "; // we add this to both pattern and data to make sure we have a full match even when data is processed before end of pattern is reached
+		String mark = " ";
 		pattern = "`"+pattern+mark+"`";
 		data += mark;
-		int[] res = match(pattern, data);
-		assertTrue(res[0] > 0);
-		assertEquals(data.getBytes(UTF_8).length, res[1]);
-		assertEquals(pattern+" => "+data, bytes(pattern).length-1, res[0]); // -1 because of the end mark ` that is not processed
-		// if a pattern end with groups or repetitions their positions might not be passed when data is fully processed.
-		// how do we know the full pattern matched? we add a literal at the end to both pattern and data (see mark above)
+		Match match = match(pattern, data+" "); // we add one more "random" byte to data so that there would be more to process so that ` exits matching not having reached end of data
+		assertEquals(data.getBytes(UTF_8).length, match.dn);
+		assertEquals(bytes(pattern).length, match.pn);
 	}
 
-	private static int[] match(String pattern, String data) {
+	static final class Match {
+		byte[] pattern; int pn;
+		byte[] data;    int dn;
+
+
+		Match(byte[] pattern, byte[] input, long pndn) {
+			this(pattern, (int)(pndn >> 32), input, (int)pndn);
+		}
+
+		Match(byte[] pattern, int pn, byte[] input, int dn) {
+			this.pattern = pattern;
+			this.pn = pn;
+			this.data = input;
+			this.dn = dn;
+		}
+
+		@Override
+		public String toString() {
+			String res = "";
+			res += new String(pattern, US_ASCII)+"\n";
+			char[] indent = new char[pn]; fill(indent, ' ');
+			res += new String(indent)+"^"+pn+"\n";
+			int pos = dn < 0 ? mismatch(dn) : dn;
+			if (pos < 20) {
+				res += new String(data, UTF_8)+"\n";
+				indent = new char[pos]; fill(indent, ' ');
+			} else {
+				int pre = 0;
+				while (pre < 25 && data[pos-pre] != '\n') pre++;
+				int post = 0;
+				while (post < 18 && data[pos+post] != '\n') post++;
+				pre--;
+				post--;
+				int pre2 = pre;
+				while (pre2 > 0 && data[pos-pre2] != ' ') pre2--;
+				if (pre2 > 0) pre=pre2;
+				res += "..."+new String(data, pos-pre, pre+post-1, UTF_8)+"...\n";
+				indent = new char[pre+3]; fill(indent, ' ');
+			}
+			res += new String(indent)+"^"+dn+"\n";
+			return res;
+		}
+	}
+
+	private static Match match(String pattern, String data) {
 		return match(bytes(pattern), bytes(data), 0);
 	}
 
-	private static int[] match(byte[] pattern, byte[] input, int d0) {
-		long res = Lex.match(pattern, 0, input, d0);
-		return new int[] { (int)(res >> 32), (int)res };
+	private static Match match(byte[] pattern, byte[] input, int d0) {
+		return new Match(pattern, input, Lex.match(pattern, 0, input, d0));
 	}
 
 	private static byte[] bytes(String s) {
