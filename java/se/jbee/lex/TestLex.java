@@ -7,7 +7,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static se.jbee.lex.Lex.isLiteral;
-import static se.jbee.lex.Lex.mismatch;
+import static se.jbee.lex.Lex.mismatchAt;
 
 import java.io.File;
 import java.io.IOException;
@@ -633,7 +633,7 @@ public class TestLex {
 
 	private static void assertNoMatchAt(String pattern, String data, int pos) {
 		Match match = match("`"+pattern+"`", data);
-		assertEquals(mismatch(pos), match.dn);
+		assertEquals(mismatchAt(pos), match.dn);
 	}
 
 	private static void assertMatchUpTo(String pattern, String data, int pos) {
@@ -679,7 +679,7 @@ public class TestLex {
 			res += new String(pattern, US_ASCII)+"\n";
 			char[] indent = new char[pn]; fill(indent, ' ');
 			res += new String(indent)+"^"+pn+"\n";
-			int pos = dn < 0 ? mismatch(dn) : dn;
+			int pos = dn < 0 ? mismatchAt(dn) : dn;
 			if (pos < 20) {
 				res += new String(data, UTF_8)+"\n";
 				indent = new char[pos]; fill(indent, ' ');

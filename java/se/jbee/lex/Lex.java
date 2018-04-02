@@ -20,8 +20,8 @@ public final class Lex {
 	}
 
 	/**
-	 * Matches the pattern against the data and returns the end position of
-	 * pattern and data at the end of a match or mismatch.
+	 * Matches the pattern against the data and returns the end position of pattern
+	 * and data at the end of a match or mismatch.
 	 *
 	 * @param pattern
 	 *            the "match program"
@@ -32,23 +32,24 @@ public final class Lex {
 	 * @param d0
 	 *            starting position in the content
 	 * @param pPlus
-	 *            pattern position for the + repeated currently, or -1 if no repeat
+	 *            pattern position for the + retried currently, or -1 if no repeat
 	 * @param maxOps
-	 *            maximal number of operations evaluated before returning
+	 *            maximal number of operations evaluated before returning, negative
+	 *            for unlimited
 	 * @return end positions (pn,dn) implemented as long to make the algorithm
-	 *         allocation free. pn is next position in pattern, dn next position
-	 *         in data after the match. On mismatch dn is (-position -1),
-	 *         pn points to the instruction that did not match.
+	 *         allocation free. pn is next position in pattern, dn next position in
+	 *         data after the match. On mismatch dn is (-position -1), pn points to
+	 *         the instruction that did not match.
 	 */
 	public static long match(byte[] pattern, int p0, byte[] data, int d0, int pPlus, int maxOps) {
 		int pn = p0;
 		int dn = d0;
 		int dr = d0;
-		int pPlus0 = -1; // position from where to repeat (last op in loop on this level)
+		int pPlus0 = -1; // position from where to retry (last op in loop on this level)
 		boolean plussed = pPlus >= 0;
 		while (pn < pattern.length && dn < data.length && maxOps-- != 0) {
 			if (!plussed)
-				dr = mismatch(dn);
+				dr = mismatchAt(dn);
 			int pOp = pn;
 			byte op  = pattern[pn++];
 			switch (op) {
@@ -93,13 +94,13 @@ public final class Lex {
 				} else {
 					dn = (int)match(pattern, pPlus0, data, dn, pOp, maxOps);
 					if (dn < 0)
-						dn = mismatch(dn); // reverses a mismatch by applying function again (blocks return positive)
+						dn = mismatchAt(dn); // reverses a mismatch by applying function again (blocks return positive)
 				}
 				break;
 			// set:
 			case '{': // set excluding non ASCII bytes
 			case '}': // set including non ASCII bytes
-				if (!setContains(pattern, pOp, data[dn++]))
+				if (!inSet(pattern, pOp, data[dn++]))
 					return pos(pOp, dr); // mismatch
 				pn = plussed && p0 == pOp ? pPlus : skipBeyondSet(pattern, pOp);
 				break;
@@ -109,7 +110,7 @@ public final class Lex {
 		return pos(pn, dn);
 	}
 
-	private static boolean setContains(byte[] pattern, int pn, int chr) {
+	private static boolean inSet(byte[] pattern, int pn, int chr) {
 		final int eos = pattern[pn++] == '{' ? '}' : '{';
 		if (chr < 0) // a non ASCII
 			return eos == '{';
@@ -182,7 +183,7 @@ public final class Lex {
 		return (long)pn << 32 | dn & 0xFFFFFFFFL;
 	}
 
-	static int mismatch(int dn) {
+	static int mismatchAt(int dn) {
 		return -dn-1;
 	}
 
