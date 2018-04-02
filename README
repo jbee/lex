@@ -63,7 +63,7 @@ ESCAPING
 Sets can also be used to match most of the instruction symbols literally.
 For example {~} is similar to \~ or {\~}.
 
-Any other byte (not {}()[]#@^_$+~*`) is matched literally. 
+Any other byte (not {}()[]#@^_$+~*`\) is matched literally. 
 Escaping can be applied to any byte even if it is not needed.
 
 ________________________________________________________________________________
