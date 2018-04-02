@@ -37,7 +37,8 @@ public final class Lex {
 	 *            maximal number of operations evaluated before returning
 	 * @return end positions (pn,dn) implemented as long to make the algorithm
 	 *         allocation free. pn is next position in pattern, dn next position
-	 *         in data after the match. On mismatch dn is (-position -1).
+	 *         in data after the match. On mismatch dn is (-position -1),
+	 *         pn points to the instruction that did not match.
 	 */
 	public static long match(byte[] pattern, int p0, byte[] data, int d0, int pPlus, int maxOps) {
 		int pn = p0;
@@ -52,8 +53,8 @@ public final class Lex {
 			byte op  = pattern[pn++];
 			switch (op) {
 			// literals:
-			case '\\': if (pattern[pn++] != data[dn++]) return pos(pOp, dr); break;
-			default :  if (op != data[dn++])   return pos(pOp, dr); break; //TODO shouldn't it be pOp here and everywhere else?
+			case '\\':if (pattern[pn++] != data[dn++]) return pos(pOp, dr); break;
+			default : if (op != data[dn++]) return pos(pOp, dr); break;
 			// special sets...
 			case '*': dn++; break;
 			case '^': if (isWS(data[dn++]))  return pos(pOp, dr); break;
@@ -65,7 +66,7 @@ public final class Lex {
 			// groups:
 			case ')':
 			case ']': if (pn != pPlus) return pos(pn, dn); break; // NOOP before the + right after
-			case '`': if (pOp > p0) return pos(pn, dn); break; // NOOP on first in block
+			case '`': if (pOp > p0)    return pos(pn, dn); break; // NOOP on first in block
 			case '(': // group must occur
 			case '[': // group can occur
 				if (!plussed || p0 != pOp) {
