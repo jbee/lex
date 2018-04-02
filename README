@@ -44,10 +44,11 @@ REPETITION   x+
 +            try previous set, group or literal again
 
 
-GROUPS       (...), [...]
+GROUPS       (...), [...], `...`
 
 (abc)        a group with sequence "abc" that *must* occur
 [abc]        a group with sequence "abc" that *can* occur
+`            exit group, unless first in group (used to embed)
 
 
 SCANNING     ~x
@@ -55,9 +56,15 @@ SCANNING     ~x
 ~            skip until following set, group or literal matches
 
 
-Any other byte (not {}()[]#@^_$+~*) is matched literally. 
-Sets can be used to match any of the instruction symbols literally, like {~}.
+ESCAPING
 
+\            escape following byte to a literal (in sets ^ and - needs it)
+
+Sets can also be used to match most of the instruction symbols literally.
+For example {~} is similar to \~ or {\~}.
+
+Any other byte (not {}()[]#@^_$+~*`) is matched literally. 
+Escaping can be applied to any byte even if it is not needed.
 
 ________________________________________________________________________________
 
@@ -68,9 +75,9 @@ EXAMPLES
 #+[.#+]           a simple floating point number with optional decimals
 "{^"}+"           a quoted string using a set to find the end
 "~"               a quoted string using a scan to find the end
-"~({^\}")         a quoted string using a scan with escaping support
-{$}@}a-zA-Z0-9_{  a php style identifier
-[{+}]#+[{ -}#+]+  international phone numbers
+"~({^\\}")        a quoted string using a scan with escaping support
+\$@}a-zA-Z0-9_{+  a php style identifier
+[\+]#+[{ -}#+]+   international phone numbers
 ~(Foo)            searching for "Foo" (e.g. in a file)
 ~(<h#>)           searching for "<h0>" to "<h9>"
 ~(<h{1-6}>)       searching for "<h1>" to "<h6>"

@@ -1,6 +1,6 @@
 package se.jbee.lex;
 
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * Lex is short for Linear expressions.
@@ -52,6 +52,7 @@ public final class Lex {
 			byte op  = pattern[pn++];
 			switch (op) {
 			// literals:
+			case '\\': if (pattern[pn++] != data[dn++]) return pos(pn, dr); break;
 			default: if (op != data[dn++])   return pos(pn, dr); break; //TODO shouldn't it be pOp here and everywhere else?
 			// special sets...
 			case '*': dn++; break;
@@ -107,26 +108,26 @@ public final class Lex {
 
 	private static boolean setContains(byte[] pattern, int pn, int chr) {
 		final int eos = pattern[pn++] == '{' ? '}' : '{';
-		boolean nonAscii = eos == '{';
-		if (pattern [pn] == '{')
-			return chr < 0;
+		if (chr < 0) // a non ASCII
+			return eos == '{';
 		boolean exclusive = pattern[pn] == '^';
 		if (exclusive) pn++;
-		boolean done = false;
-		int p1 = pn;
-		while (!done) {
-			final byte m = pattern[pn++];
-			// order of tests is important so that pn advances after end of a set
-			done =     m == '-' && pn-1 > p1 && chr <= pattern[pn++] && chr > pattern[pn-3] // range
-					|| m == eos // end of set
-					|| nonAscii && (chr < 0)
-					|| m == chr && (chr != '-' || pn-1 == p1);  // match
-		}
-		return ((pattern[pn-1] == eos) == exclusive);
+		byte m = pattern[pn++];
+		if (m == chr) // first char special handling
+			return !exclusive;
+		if (m == eos)
+			return exclusive;
+		if (m == '\\') pn--; // rewind in case of escaped first member
+		do {
+			m = pattern[pn++];
+		} while (!(m == '-' && chr <= pattern[pn++] && chr > pattern[pn-3] // range; order of tests is important so that pn advances after end of a set
+				|| m == '\\' && chr == pattern[pn++]
+				|| m == eos // end of set
+				|| m == chr && m != '-'));  // match
+		return ((m == eos) == exclusive);
 	}
 
 	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
-		int dnf = -1;
 		int m0 = maskPosition(pattern, pn); // find literal position (-1 if no such exists)
 		int mn = m0;
 		long mask = 0L;
@@ -141,26 +142,33 @@ public final class Lex {
 		do {
 			if (m0 > 0)
 				dn = hop(pattern, m0, mask, mn, data, dn);
-			if (dn < data.length)
-				dnf = (int)match(pattern, pn, data, dn, -1, 1);
-		} while (dnf < 0 && ++dn < data.length);
+		} while ((int)match(pattern, pn, data, dn, -1, 1) < 0 && ++dn < data.length);
 		return dn;
 	}
 
 	private static int skipBeyondSet(byte[] pattern, int pn) {
 		int eos = pattern[pn++] == '{' ? '}' : '{';
-		while (pn < pattern.length && pattern[pn++] != eos); // forward pn after end of set
+		while (pn < pattern.length) {
+			byte op = pattern[pn++];
+			if (op == '\\') {
+				pn++;
+			} else if (op == eos)
+				return pn;
+		}
 		return pn;
 	}
 
 	private static int skipBeyondOption(byte[] pattern, int pn) {
 		int level = 1;
 		while (level > 0 && pn < pattern.length) {
-			if (pattern[pn] == '{' || pattern[pn] == '}') {
+			byte op = pattern[pn];
+			if (op == '\\') {
+				pn+=2;
+			} else if (op == '{' || op == '}') {
 				pn = skipBeyondSet(pattern, pn);
 			} else {
-				if (pattern[pn] == '[') level++;
-				if (pattern[pn] == ']') level--;
+				if (op == '[') level++;
+				if (op == ']') level--;
 				pn++;
 			}
 		}
@@ -204,9 +212,8 @@ public final class Lex {
 			return dn;
 		}
 		do {
-			while (dn < data.length && ((1L << shift(data[dn])) & mask) == 0) {
+			while (dn < data.length && ((1L << shift(data[dn])) & mask) == 0)
 				dn+= len;
-			}
 			if (dn < data.length) {
 				int c = len;
 				int dx = dn;
@@ -234,15 +241,14 @@ public final class Lex {
 	}
 
 	private static long opsMask() {
-		String ops = "#$()+@[]^_";
-		return mask(ops.getBytes(StandardCharsets.US_ASCII), 0, ops.length());
+		String ops = "#$()+@[]^_\\{}*`~";
+		return mask(ops.getBytes(US_ASCII), 0, ops.length());
 	}
 
 	private static long mask(byte[] pattern, int s, int e) {
 		long mask = 0L;
-		for (int i = s; i < e; i++) {
+		for (int i = s; i < e; i++)
 			mask |= 1L << shift(pattern[i]);
-		}
 		return mask;
 	}
 

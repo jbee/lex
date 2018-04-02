@@ -83,6 +83,24 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchReadmeExamples() {
+		assertFullMatch("####/##/##", "1950/05/12");
+		assertFullMatch("##:##[:##]", "20:45");
+		assertFullMatch("##:##[:##]", "20:45:11");
+		assertFullMatch("#+[.#+]", "12");
+		assertFullMatch("#+[.#+]", "12.95");
+		assertFullMatch("\"{^\"}+\"", "\"hello world\"");
+		assertFullMatch("\"~\"", "\"hello world\"");
+		assertFullMatch("\"~({^\\\\}\"", "\"hello \\\"world\\\"\"");
+		assertFullMatch("\\$@}a-zA-Z0-9_{+", "$püü");
+		assertFullMatch("[\\+]#+[{ -}#+]+x", "+45 1234 56789x");
+		assertFullMatch("~(Foo)", "Hello Foo");
+		assertFullMatch("~(<h#>)", "Some text <h1>");
+		assertFullMatch("~(<h{1-6}>)", "Some text <h1>");
+		assertFullMatch("~(Foo~(Bar))", "Only a Foo followed by a Bar");
+	}
+
+	@Test
 	public void matchNumberExamples() {
 		// dates
 		assertFullMatch("####/##/##", "2017/10/24");
@@ -139,8 +157,8 @@ public class TestLex {
 		assertFullMatch("'~'", "'abcd'");
 		assertFullMatch("'''~(''')", "'''ab'c'd'''");
 		assertFullMatch("'{^'}+'", "'abcd and d'");  // by using exclusive sets
-		assertFullMatch("'~({^\\}')", "'ab'");       // with escaping
-		assertFullMatch("'~({^\\}')", "'ab\\'c'");
+		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
+		assertFullMatch("'~({^\\\\}')", "'ab\\'c'");
 	}
 
 	@Test
@@ -250,6 +268,12 @@ public class TestLex {
 		assertNoMatchAt("{^c}", "c", 0);
 		assertNoMatchAt("{^-}", "-", 0);
 		assertNoMatchAt("{^^}", "^", 0);
+	}
+
+	@Test
+	public void matchSetWithEscape() {
+		assertFullMatch("{^\\\\}", "}");
+		assertFullMatch("{\\}}", "}");
 	}
 
 	@Test
@@ -383,6 +407,7 @@ public class TestLex {
 	public void matchSetInclusingNonASCII() {
 		assertFullMatch("}a{+b", "aab");
 		assertFullMatch("}a{+b", "aäöaü²€b");
+		assertFullMatch("}a-zA-Z0-9_{+", "püü");
 	}
 
 	@Test
@@ -586,6 +611,21 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchEscape() {
+		assertFullMatch("~\\a", "xxxa");
+		assertFullMatch("\\\\", "\\");
+		assertFullMatch("\\(", "(");
+		assertFullMatch("\\++", "++");
+		assertFullMatch("(\\))", ")");
+		assertFullMatch("(\\)+##)@@", "))11xx");
+		assertFullMatch("(\\)+)", ")");
+		assertFullMatch("[\\]+]", "]]");
+		assertFullMatch("[\\]+##]#+", "]]1234");
+		assertFullMatch("\\~", "~");
+		assertFullMatch("\\$", "$");
+	}
+
+	@Test
 	public void matchNonAsciiEmptySet() {
 		int[] res = match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0);
 		assertEquals(3, res[1]);
@@ -608,7 +648,7 @@ public class TestLex {
 		int[] res = match(pattern, data);
 		assertTrue(res[0] > 0);
 		assertEquals(data.getBytes(UTF_8).length, res[1]);
-		assertEquals(pattern+data, bytes(pattern).length-1, res[0]); // -1 because of the end mark ` that is not processed
+		assertEquals(pattern+" => "+data, bytes(pattern).length-1, res[0]); // -1 because of the end mark ` that is not processed
 		// if a pattern end with groups or repetitions their positions might not be passed when data is fully processed.
 		// how do we know the full pattern matched? we add a literal at the end to both pattern and data (see mark above)
 	}
