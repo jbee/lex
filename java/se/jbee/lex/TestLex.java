@@ -192,6 +192,16 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchLiteralPlusPlus() {
+		assertFullMatch("a++", "a");
+		assertFullMatch("a++", "aa");
+		assertFullMatch("a++", "aaa");
+		assertFullMatch("a++b", "ab");
+		assertFullMatch("a++b", "aab");
+		assertFullMatch("a+++b", "aab");
+	}
+
+	@Test
 	public void mismatchLiteralPlus() {
 		assertNoMatchAt("a+x", "ay", 1);
 		assertNoMatchAt("a+x", "aay", 2);
@@ -554,6 +564,20 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchScanDirectPlus() {
+		assertNoMatchAt("a~+c", "axxxbbbc", 1);
+	}
+
+	@Test
+	public void matchScanScan() {
+		assertFullMatch("a~~bc", "abc");
+		assertFullMatch("a~~bc", "axbc");
+		assertFullMatch("a~~bc", "axxbc");
+		assertFullMatch("a~~bc", "axxxbc");
+		assertFullMatch("a~~~bc", "axxxbc");
+	}
+
+	@Test
 	public void matchNestedOption() {
 		assertFullMatch("a[b[c]]d", "ad");
 		assertFullMatch("a[b[c]]d", "abd");
@@ -617,6 +641,7 @@ public class TestLex {
 		assertFullMatch("\\\\", "\\");
 		assertFullMatch("\\(", "(");
 		assertFullMatch("\\++", "++");
+		assertFullMatch("\\++", "+++");
 		assertFullMatch("(\\))", ")");
 		assertFullMatch("(\\)+##)@@", "))11xx");
 		assertFullMatch("(\\)+)", ")");

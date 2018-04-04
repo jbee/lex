@@ -91,7 +91,7 @@ public final class Lex {
 				if (pOp == pPlus) { // reached same + again
 					pn = p0;        // go back to loop start
 					dr = dn;        // remember successful match position
-				} else {
+				} else if (pOp > p0 && pattern[pPlus0] != '+') {
 					dn = (int)match(pattern, pPlus0, data, dn, pOp, maxOps);
 					if (dn < 0)
 						dn = mismatchAt(dn); // reverses a mismatch by applying function again (blocks return positive)
@@ -132,6 +132,8 @@ public final class Lex {
 	}
 
 	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
+		if (pattern[pn] == '+')
+			return data.length; // mismatch
 		int m0 = maskPosition(pattern, pn); // find literal position (-1 if no such exists)
 		int mn = m0;
 		long mask = 0L;
