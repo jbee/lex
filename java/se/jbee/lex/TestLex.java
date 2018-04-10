@@ -93,8 +93,8 @@ public class TestLex {
 		assertFullMatch("\"{^\"}+\"", "\"hello world\"");
 		assertFullMatch("\"~\"", "\"hello world\"");
 		assertFullMatch("\"~({^\\\\}\"", "\"hello \\\"world\\\"\"");
-		assertFullMatch("\\$@}a-zA-Z0-9_{+", "$püü");
-		assertFullMatch("[\\+]#+[{ -}#+]+x", "+45 1234 56789x");
+		assertFullMatch("\\$@{?a-zA-Z0-9_}+", "$püü");
+		assertFullMatch("[\\+]#+[{- }#+]+x", "+45 1234 56789x");
 		assertFullMatch("~(Foo)", "Hello Foo");
 		assertFullMatch("~(<h#>)", "Some text <h1>");
 		assertFullMatch("~(<h{1-6}>)", "Some text <h1>");
@@ -105,8 +105,9 @@ public class TestLex {
 	public void matchNumberExamples() {
 		// dates
 		assertFullMatch("####/##/##", "2017/10/24");
-		assertFullMatch("####{-/}##{-/}##", "2017/10/24");
-		assertFullMatch("####{-/}##{-/}##", "2017-10-24");
+		assertFullMatch("####{-/.}##{-/.}##", "2017/10/24");
+		assertFullMatch("####{-/.}##{-/.}##", "2017-10-24");
+		assertFullMatch("####{-/.}##{-/.}##", "2017.10.24");
 
 		// time
 		assertFullMatch("##:##:##", "12:35:45");
@@ -128,10 +129,10 @@ public class TestLex {
 		assertFullMatch("#+[.#+]", "1.0");
 		assertFullMatch("#+[.#+]", "13.45");
 		// java style
-		assertFullMatch("[#+][{_,}###]+.#+", "13.45");
-		assertFullMatch("[#+][{_,}###]+.#+", ".01");
-		assertFullMatch("[#+][{_,}###]+.#+", "0.0");
-		assertFullMatch("[#+][{_,}###]+.#+", "12_345.9");
+		assertFullMatch("[#+[{_,}###]+].#+", "13.45");
+		assertFullMatch("[#+[{_,}###]+].#+", ".01");
+		assertFullMatch("[#+[{_,}###]+].#+", "0.0");
+		assertFullMatch("[#+[{_,}###]+].#+", "12_345.9");
 
 		String anyNumber = "{.0-9}[{.xb0-9}[{0-9A-Fa-f_}+][.#+]][{dDfFlL}]";
 		assertFullMatch(anyNumber, "12");
@@ -212,7 +213,6 @@ public class TestLex {
 	public void matchLiteralAndSet() {
 		assertFullMatch("ab{cd}", "abc");
 		assertFullMatch("ab{cd}", "abd");
-		assertFullMatch("a{^}", "a^");
 	}
 
 	@Test
@@ -223,12 +223,81 @@ public class TestLex {
 	}
 
 	@Test
+	public void mismatchSetOddCases() {
+		assertNoMatchAt("{-}", "x", 0);
+		assertNoMatchAt("{\\-}", "x", 0);
+		assertNoMatchAt("{\\^}", "x", 0);
+		assertNoMatchAt("{?-c}", "a", 0); // = {?\-c}
+		assertNoMatchAt("{?-c}", "b", 0); // = {?\-c}
+		assertNoMatchAt("{0-?}", "/", 0); // = {0-\?}
+		assertNoMatchAt("{0-?}", "@", 0); // = {0-\?}
+	}
+
+	@Test
+	public void matchSetOddCases() {
+		assertFullMatch("{^}", "^");
+		assertMatchUpTo("{^}+", "any byte", 8);
+		assertFullMatch("{-}", "-");
+		assertFullMatch("{\\-}", "-");
+		assertFullMatch("{\\^}", "^");
+		assertFullMatch("{?-c}", "-"); // = {?\-c}
+		assertFullMatch("{?-c}", "c"); // = {?\-c}
+		assertFullMatch("{0-?}", "1"); // = {0-\?}
+		assertFullMatch("{0-?}", "?"); // = {0-\?}
+		assertFullMatch("{@-c}", "m"); // not a range
+		assertFullMatch("{@-c}", "c"); // not a range
+	}
+
+	@Test
+	public void matchSetRangeEscape() {
+		assertFullMatch("{\\a-\\z}", "a");
+		assertFullMatch("{\\a-\\z}", "g");
+		assertFullMatch("{\\a-\\z}", "z");
+		assertFullMatch("{\\?-\\@}", "?");
+		assertFullMatch("{\\?-\\@}", "@");
+		assertFullMatch("{+-?}", "+");
+		assertFullMatch("{+-?}", "?");
+	}
+
+	@Test
+	public void mismatchSetRangeEscape() {
+		assertNoMatchAt("{\\a-\\z}", "`", 0);
+		assertNoMatchAt("{\\a-\\z}", "{", 0);
+		assertNoMatchAt("{\\?-\\@}", ">", 0);
+		assertNoMatchAt("{\\?-\\@}", "A", 0);
+		assertNoMatchAt("{+-?}", "*", 0);
+		assertNoMatchAt("{+-?}", "@", 0);
+	}
+
+	@Test
+	public void matchSetRangeAt() {
+		assertFullMatch("{@@-@ }", ""+(char)0);
+		assertFullMatch("{@@-@ }", "`");
+	}
+
+	@Test
+	public void mismatchSetRangeAt() {
+		assertNoMatchAt("{@@-@ }", "a", 0);
+		assertNoMatchAt("{@@-@ }", "~", 0);
+	}
+
+	@Test
+	public void matchSetAtFold() {
+		assertFullMatch("{@I}", "\t");
+		assertFullMatch("{@J}", "\n");
+		assertFullMatch("{@M}", "\r");
+		assertFullMatch("{@?}", ""+(char)127);
+		assertFullMatch("{@@}", ""+(char)0);
+		assertFullMatch("{@+}", "k");
+	}
+
+	@Test
 	public void matchExclusiveSet() {
+		assertFullMatch("{^-}", "x");
 		assertFullMatch("{^cd}", "a");
 		assertFullMatch("{^cd}", "b");
 		assertFullMatch("{^cd}", "e");
 		assertFullMatch("{^c}", "e");
-		assertFullMatch("{^-}", "x");
 		assertFullMatch("{^^}", "x");
 		assertFullMatch("{^^}", "#");
 	}
@@ -256,9 +325,9 @@ public class TestLex {
 
 	@Test
 	public void matchSetRangeSquareBrackets() {
-		assertFullMatch("{[}{^]}+{]}", "[foo]");
-		assertFullMatch("{[}{^]}+{]}", "[1]");
-		assertFullMatch("{[}{^]}+{]}", "[x++]");
+		assertFullMatch("\\[{^]}+\\]", "[foo]");
+		assertFullMatch("\\[{^]}+\\]", "[1]");
+		assertFullMatch("\\[{^]}+\\]", "[x++]");
 	}
 
 	@Test
@@ -285,6 +354,11 @@ public class TestLex {
 	public void matchSetWithEscape() {
 		assertFullMatch("{^\\\\}", "}");
 		assertFullMatch("{\\}}", "}");
+	}
+
+	@Test
+	public void matchSetNotClosed() {
+		assertFullMatch("a[{b", "a");
 	}
 
 	@Test
@@ -416,9 +490,9 @@ public class TestLex {
 
 	@Test
 	public void matchSetInclusingNonASCII() {
-		assertFullMatch("}a{+b", "aab");
-		assertFullMatch("}a{+b", "aäöaü²€b");
-		assertFullMatch("}a-zA-Z0-9_{+", "püü");
+		assertFullMatch("{?a}+b", "aab");
+		assertFullMatch("{?a}+b", "aäöaü²€b");
+		assertFullMatch("{?a-zA-Z0-9_}+", "püü");
 	}
 
 	@Test
@@ -565,6 +639,7 @@ public class TestLex {
 
 	@Test
 	public void matchScanDirectPlus() {
+		assertFullMatch("a~\\+", "ax+");
 		assertNoMatchAt("a~+c", "axxxbbbc", 1);
 	}
 
@@ -627,12 +702,12 @@ public class TestLex {
 
 	@Test
 	public void matchAnyByteSet() {
-		assertFullMatch("******", "aAzZ09");
-		assertFullMatch("******", "<>[]{}");
-		assertFullMatch("******", "!?-:.,");
-		assertFullMatch("******", "+-*/^=");
-		assertFullMatch("******", "&|%#@~");
-		assertFullMatch("****",   " \t\n\r");
+		assertFullMatch("??????", "aAzZ09");
+		assertFullMatch("??????", "<>[]{}");
+		assertFullMatch("??????", "!?-:.,");
+		assertFullMatch("??????", "+-*/^=");
+		assertFullMatch("??????", "&|%#@~");
+		assertFullMatch("????",   " \t\n\r");
 	}
 
 	@Test
@@ -652,8 +727,8 @@ public class TestLex {
 	}
 
 	@Test
-	public void matchNonAsciiEmptySet() {
-		assertEquals(3, match("`}{+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0).dn);
+	public void matchNonAsciiSet() {
+		assertEquals(3, match("`{?}+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0).dn);
 	}
 
 	private static void assertNoMatchAt(String pattern, String data, int pos) {

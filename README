@@ -26,7 +26,7 @@ SETS         {...}, }...{
 {abc}        a set of bytes "a","b" and "c"
 {^abc}       a set of any byte but "a","b" and "c"
 {a-c}        a set of "a", "b" and "c" given as a range
-}a-c{        range of "a" to "c" and *all* non ASCII bytes
+{?}          a set of *all* non ASCII bytes
 
 
 SPECIAL SETS
@@ -36,7 +36,7 @@ SPECIAL SETS
 $            any ASCII new line (\n or \r)
 _            any ASCII whitespace character
 ^            any byte that is not an ASCII whitespace character
-*            any single byte
+?            any single byte
 
 
 REPETITION   x+
@@ -63,7 +63,7 @@ ESCAPING
 Sets can also be used to match most of the instruction symbols literally.
 For example {~} is similar to \~ or {\~}.
 
-Any other byte (not {}()[]#@^_$+~*`\) is matched literally. 
+Any other byte (not {}()[]#@^_$+~?`\) is matched literally. 
 Escaping can be applied to any byte even if it is not needed.
 
 ________________________________________________________________________________

@@ -57,7 +57,7 @@ public final class Lex {
 			case '\\':if (pattern[pn++] != data[dn++]) return pos(pOp, dr); break;
 			default : if (op != data[dn++]) return pos(pOp, dr); break;
 			// special sets...
-			case '*': dn++; break;
+			case '?': dn++; break;
 			case '^': if (isWS(data[dn++]))  return pos(pOp, dr); break;
 			case '_': if (!isWS(data[dn++])) return pos(pOp, dr); break;
 			case '$': if (!isNL(data[dn++])) return pos(pOp, dr); break;
@@ -65,8 +65,9 @@ public final class Lex {
 			case '@': if ((0xFFFF & (data[dn++] & 0xDF) - 'A') >= 26) return pos(pOp, dr); break;
 			case '#': if ((0xFFFF & (data[dn++]) - '0') >= 10) return pos(pOp, dr); break;
 			// groups:
+			case '}':
 			case ')':
-			case ']': if (pn != pPlus) return pos(pn, dn); break; // NOOP before the + right after
+			case ']': if (pn != pPlus) return pos(pn, dn); break; // SKIP before the + right after
 			case '`': if (pOp > p0)    return pos(pn, dn); break; // NOOP on first in block
 			case '(': // group must occur
 			case '[': // group can occur
@@ -75,7 +76,7 @@ public final class Lex {
 					if ((int)pndn < 0) {
 						if (op == '(') // when must occur its a mismatch
 							return plussed ? pos(pOp, dr) : pndn ;
-						pn = skipBeyondOption(pattern, pn);
+						pn = skipBeyondBlock(pattern, pn);
 					} else {
 						pn = (int)(pndn >> 32);
 						dn = (int)pndn;
@@ -98,9 +99,8 @@ public final class Lex {
 				}
 				break;
 			// set:
-			case '{': // set excluding non ASCII bytes
-			case '}': // set including non ASCII bytes
-				if (!inSet(pattern, pOp, data[dn++]))
+			case '{':
+				if (!inSet(pattern, pn, data[dn++]))
 					return pos(pOp, dr); // mismatch
 				pn = plussed && p0 == pOp ? pPlus : skipBeyondSet(pattern, pOp);
 				break;
@@ -110,25 +110,38 @@ public final class Lex {
 		return pos(pn, dn);
 	}
 
-	private static boolean inSet(byte[] pattern, int pn, int chr) {
-		final int eos = pattern[pn++] == '{' ? '}' : '{';
-		if (chr < 0) // a non ASCII
-			return eos == '{';
-		boolean exclusive = pattern[pn] == '^';
-		if (exclusive) pn++;
-		byte op = pattern[pn++];
-		if (op == chr) // first char special handling for {-}
-			return !exclusive;
-		if (op == eos)
-			return exclusive; // for {^}
-		if (op == '\\') pn--; // rewind in case of escaped first member
-		do {
-			op = pattern[pn++];
-		} while (!(op == '-' && chr <= pattern[pn++] && chr > pattern[pn-3] // range match
-				|| op == '\\' && chr == pattern[pn++]                       // escaped literal match
-				|| op == eos                                                // end of set
-				|| op == chr && op != '-'));                                // literal match
-		return ((op == eos) == exclusive);
+	private static boolean inSet(byte[] pattern, int p0, byte chr) {
+		if (pattern[p0] == '^' && pattern[p0-1] == '{')
+			return !inSet(pattern, p0+1, chr);
+		final int pEnd = pattern.length;
+		int pn = p0;
+		int c = 0;
+		while (pn < pEnd) {
+			byte op = pattern[pn++];
+			switch(op) {
+			default  : if (op == chr)  return true; break;
+			case '?' : if (chr < 0)    return true; c = -1; break;
+			case '\\': if (pn >= pEnd) return false; if (pattern[pn++] == chr)         return true; break;
+			case '@' : if (pn >= pEnd) return false; if ((pattern[pn++] ^ '@') == chr) return true; break;
+			case '}' : return false;
+			case '-' :
+				if (c == 0) { // after ? or as first member
+					if (op == chr) return true; // => match - literally
+				} else {      // range (at this point == lower has been tested already)
+					if (pn >= pEnd) return false;
+					byte lower = pattern[pn-2];
+					if (pn >= 3 && pattern[pn-3] == '@') lower ^= '@';
+					byte upper = pattern[pn++];
+					if (upper == '}' || pn + 1 >= pEnd && (upper == '\\' || upper == '@')) return false;
+					if (upper == '\\') { upper = pattern[pn++]; }
+					else if (upper == '@') upper = (byte) (pattern[pn++] ^ '@');
+					if (chr <= upper && chr >= lower) return true;
+				}
+				break;
+			}
+			c++;
+		}
+		return false;
 	}
 
 	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
@@ -153,28 +166,31 @@ public final class Lex {
 	}
 
 	private static int skipBeyondSet(byte[] pattern, int pn) {
-		int eos = pattern[pn++] == '{' ? '}' : '{';
-		while (pn < pattern.length) {
+		final int pEnd = pattern.length;
+		while (pn < pEnd) {
 			byte op = pattern[pn++];
-			if (op == '\\') {
+			if (op == '\\' || op == '@') {
 				pn++;
-			} else if (op == eos)
+			} else if (op == '}')
 				return pn;
 		}
 		return pn;
 	}
 
-	private static int skipBeyondOption(byte[] pattern, int pn) {
+	private static int skipBeyondBlock(byte[] pattern, int pn) {
+		final int pEnd = pattern.length;
 		int level = 1;
-		while (level > 0 && pn < pattern.length) {
+		while (level > 0 && pn < pEnd) {
 			byte op = pattern[pn];
 			if (op == '\\') {
 				pn+=2;
-			} else if (op == '{' || op == '}') {
+			} else if (op == '{') {
 				pn = skipBeyondSet(pattern, pn);
 			} else {
-				if (op == '[') level++;
-				if (op == ']') level--;
+				if (op == '[' || op == '(') {
+					level++;
+				} else if (op == ')' || op == ']' || op == '}')
+					level--;
 				pn++;
 			}
 		}
