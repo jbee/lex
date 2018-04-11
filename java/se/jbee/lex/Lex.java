@@ -2,6 +2,8 @@ package se.jbee.lex;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+import java.nio.ByteBuffer;
+
 /**
  * Lex is short for Linear expressions.
  *
@@ -144,24 +146,40 @@ public final class Lex {
 		return false;
 	}
 
-	private static int scan(byte[] pattern, int pn, byte[] data, int dn) {
-		if (pattern[pn] == '+')
+	private static int scan(byte[] pattern, int p0, byte[] data, int dn) {
+		if (pattern[p0] == '+')
 			return data.length; // mismatch
-		int m0 = maskPosition(pattern, pn); // find literal position (-1 if no such exists)
-		int mn = m0;
-		long mask = 0L;
-		if (m0 >= 0) {
-			if (pattern[pn] == '(') {
-				while (mn < pattern.length && isLiteral(pattern[mn])) mn++;
-			} else {
-				mn++;
-			}
-			mask = mask(pattern, m0, mn); // make literal mask
-		}
+		if (pattern[p0] != '(') // basic scan (if no group is used there is no point)
+			return basicScan(pattern, p0, data, dn);
+		// optimized:
+		int pEnd = skipBeyondBlock(pattern, p0+1);
+		// find the longest maskable sequence between pn and pEnd
+		int pm = p0;
+		while (pm < pEnd && pattern[pm] == '(') pm++;
+		int pmEnd = pm;
+		while (pmEnd < pEnd && isMaskable(pattern[pmEnd])) pmEnd++;
+		//TODO improve by adding a offset so that single byte matching instructions can be skipped but later on they are tested
+		int len = pmEnd-pm;
+		if (len == 0) // bad luck: no maskable sequence at group start
+			return basicScan(pattern, p0, data, dn);
+		long mask = mask(pattern, pm, pmEnd); // make literal mask
 		do {
-			if (m0 > 0)
-				dn = hop(pattern, m0, mask, mn, data, dn);
-		} while ((int)match(pattern, pn, data, dn, -1, 1) < 0 && ++dn < data.length);
+			dn = hop(pattern, pm, data, dn, mask, len);
+		} while ((int)match(pattern, p0, data, dn, -1, 1) < 0 && ++dn < data.length);
+		return dn;
+	}
+
+	private static int basicScan(byte[] pattern, int p0, byte[] data, int dn) {
+		byte chr = pattern[p0];
+		if (isOp(chr)) { // slow: pattern
+			while ((int)match(pattern, p0, data, dn, -1, 1) < 0 && ++dn < data.length);
+		} else
+			dn = skipToNext(chr, data, dn);
+		return dn;
+	}
+
+	private static int skipToNext(byte chr, byte[] data, int dn) {
+		while (dn < data.length && data[dn] != chr) dn++;
 		return dn;
 	}
 
@@ -225,24 +243,21 @@ public final class Lex {
 	 * their lower case variant 64-95.
 	 */
 
-	private static int hop(byte[] pattern, int m0, long mask, int mn, byte[] data, int d0) {
+	private static int hop(byte[] pattern, int p0, byte[] data, int d0, long mask, int len) {
 		int dn = d0;
-		final int len = mn - m0;
-		final byte start = pattern[m0];
-		if (len == 1) {
-			while (dn < data.length && data[dn] != start) dn++;
-			return dn;
-		}
+		final byte first = pattern[p0];
+		if (len == 1)
+			return skipToNext(first, data, dn);
 		do {
 			while (dn < data.length && ((1L << shift(data[dn])) & mask) == 0)
 				dn+= len;
 			if (dn < data.length) {
 				int c = len;
 				int dx = dn;
-				while (c-- > 0 && dx > d0 && data[dx] != start) dx--;
-				if (data[dx] == start) {
+				while (c-- > 0 && dx > d0 && data[dx] != first) dx--;
+				if (data[dx] == first) {
 					c = 0;
-					while (c < len && dx < data.length && data[dx++] == pattern[m0+c]) c++;
+					while (c < len && dx < data.length && data[dx++] == pattern[p0+c]) c++;
 					if (c >= len)
 						return dx-len;
 				}
@@ -252,19 +267,11 @@ public final class Lex {
 		return dn;
 	}
 
-	private static int maskPosition(byte[] pattern, int pn) {
-		while (pattern[pn] == '(') pn++;
-		return isLiteral(pattern[pn]) ? pn : -1;
-	}
+	static final String ops = "()[]{}#$+@^_\\?`~";
+	private static final long OPS_MASK = mask(ops.getBytes(US_ASCII), 0, ops.length());
 
-	private static final long OPS_MASK = opsMask();
-	public static boolean isLiteral(byte b) {
-		return b > 0 && ((1L << shift(b)) & OPS_MASK) == 0L;
-	}
-
-	private static long opsMask() {
-		String ops = "#$()+@[]^_\\{}*`~";
-		return mask(ops.getBytes(US_ASCII), 0, ops.length());
+	public static boolean isMaskable(byte b) {
+		return b >= 32 && ((1L << shift(b)) & OPS_MASK) == 0L;
 	}
 
 	private static long mask(byte[] pattern, int s, int e) {
@@ -278,5 +285,27 @@ public final class Lex {
 		return b >= '`' ? (b & 0xDF)-32 : b-32;
 	}
 
+	/*
+	 * Escaping
+	 */
+
+	public static boolean isOp(byte b) {
+		return b > 32 && b != '|' && b != 127 && ((1L << shift(b)) & OPS_MASK) != 0L;
+	}
+
+	public static byte[] escaped(byte[] literal) {
+		return escaped(literal, 0, literal.length);
+	}
+
+	public static byte[] escaped(byte[] literal, int start, int end) {
+		ByteBuffer escaped = ByteBuffer.allocate(literal.length+literal.length/8);
+		for (int i = start; i < end; i++) {
+			byte chr = literal[i];
+			if (isOp(chr))
+				escaped.put((byte)'\\');
+			escaped.put(chr);
+		}
+		return escaped.array();
+	}
 }
 

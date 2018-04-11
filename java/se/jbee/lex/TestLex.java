@@ -6,7 +6,8 @@ import static java.util.Arrays.fill;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static se.jbee.lex.Lex.isLiteral;
+import static org.junit.Assert.fail;
+import static se.jbee.lex.Lex.isMaskable;
 import static se.jbee.lex.Lex.mismatchAt;
 
 import java.io.File;
@@ -20,14 +21,29 @@ public class TestLex {
 	@Test
 	public void literalMasking() {
 		for (byte b : bytes("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ<> ")) {
-			assertTrue(isLiteral(b));
+			assertTrue(isMaskable(b));
 		}
-		for (byte b : bytes("#$()+@[]^_")) {
-			assertFalse(isLiteral(b));
+		for (byte b : bytes(Lex.ops)) {
+			assertFalse(isMaskable(b));
 		}
-		assertFalse(isLiteral((byte)0));
-		assertFalse(isLiteral((byte)31));
-		assertFalse(isLiteral((byte)-1));
+		assertFalse(isMaskable((byte)0));
+		assertFalse(isMaskable((byte)31));
+		assertFalse(isMaskable((byte)-1));
+		assertFalse(isMaskable((byte)-128));
+	}
+
+	@Test
+	public void escapeOps() {
+		int c = 0;
+		for (byte i = -128; i < 127; i++) {
+			boolean op = Lex.isOp(i);
+			if (Lex.ops.contains(String.valueOf((char)i)) && !op)
+				fail((char)i+" ("+(i)+") is an op and must be escaped.");
+			if (op) {
+				c++;
+			}
+		}
+		assertEquals(c, Lex.ops.length());
 	}
 
 	@Test
@@ -92,7 +108,7 @@ public class TestLex {
 		assertFullMatch("#+[.#+]", "12.95");
 		assertFullMatch("\"{^\"}+\"", "\"hello world\"");
 		assertFullMatch("\"~\"", "\"hello world\"");
-		assertFullMatch("\"~({^\\\\}\"", "\"hello \\\"world\\\"\"");
+		assertFullMatch("\"~({^\\\\}\")", "\"hello \\\"world\\\"\"");
 		assertFullMatch("\\$@{?a-zA-Z0-9_}+", "$püü");
 		assertFullMatch("[\\+]#+[{- }#+]+x", "+45 1234 56789x");
 		assertFullMatch("~(Foo)", "Hello Foo");
@@ -156,10 +172,10 @@ public class TestLex {
 	 **/
 	@Test
 	public void matchQuotedStrings() {
+		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
 		assertFullMatch("'~'", "'abcd'");
 		assertFullMatch("'''~(''')", "'''ab'c'd'''");
 		assertFullMatch("'{^'}+'", "'abcd and d'");  // by using exclusive sets
-		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
 		assertFullMatch("'~({^\\\\}')", "'ab\\'c'");
 	}
 
