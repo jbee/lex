@@ -57,7 +57,7 @@ public final class Lex {
 			switch (op) {
 			// literals:
 			case '\\':if (pattern[pn++] != data[dn++]) return pos(pOp, dr); break;
-			default : if (op != data[dn++]) return pos(pOp, dr); break;
+			default : if (op != data[dn++])  return pos(pOp, dr); break;
 			// special sets...
 			case '?': dn++; break;
 			case '^': if (isWS(data[dn++]))  return pos(pOp, dr); break;
@@ -86,10 +86,7 @@ public final class Lex {
 				}
 				break;
 			case '~': // scan
-				dn = scan(pattern, pn, data, dn);
-				if (dn >= data.length)
-					return pos(pn, dr);
-				break;
+				if ((dn = scan(pattern, pn, data, dn)) >= data.length) return pos(pn, dr); break;
 			case '+': // retry:
 				if (pOp == pPlus) { // reached same + again
 					pn = p0;        // go back to loop start
@@ -249,15 +246,14 @@ public final class Lex {
 	}
 
 	/*
-	 * Everything below is purely a performance optimization for scanning to
-	 * find a literal sequence.
+	 * Everything below is purely a performance optimization for scanning to find a
+	 * literal sequence.
 	 *
-	 * The idea is this: if ~ is followed by a literal or literal sequence or a
-	 * group (...) starting with a literal we can hop forward checking every
-	 * n-th byte to see if it is one of the bytes in the literal sequence
-	 * identified. This check is done by building a bitmask. For the bitmask we
-	 * use a long and map 32-95 to 0-63. ASCIIs from 96 to 127 are mapped to
-	 * their lower case variant 64-95.
+	 * The idea is this: if ~ is followed group with a literal sequence we can hop
+	 * forward checking every n-th byte to see if it is one of the bytes in the
+	 * literal sequence identified. This check is done by building a bitmask. For
+	 * the bitmask we use a long and map 32-95 to 0-63. ASCIIs from 96 to 127 are
+	 * mapped to their lower case variant 64-95.
 	 */
 
 	private static int hop(byte[] pattern, int p0, byte[] data, int d0, long mask, int len) {
