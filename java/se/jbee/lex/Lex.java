@@ -266,7 +266,7 @@ public final class Lex {
 		if (len == 1)
 			return skipToNext(first, data, dn);
 		do {
-			while (dn < data.length && ((1L << shift(data[dn])) & mask) == 0)
+			while (dn < data.length && (mask(data[dn]) & mask) == 0)
 				dn+= len;
 			if (dn < data.length) {
 				int c = len;
@@ -288,18 +288,18 @@ public final class Lex {
 	private static final long OPS_MASK = mask(ops.getBytes(US_ASCII), 0, ops.length());
 
 	public static boolean isMaskable(byte b) {
-		return b >= 32 && ((1L << shift(b)) & OPS_MASK) == 0L;
+		return b >= 32 && (mask(b) & OPS_MASK) == 0L;
 	}
 
 	private static long mask(byte[] pattern, int s, int e) {
 		long mask = 0L;
 		for (int i = s; i < e; i++)
-			mask |= 1L << shift(pattern[i]);
+			mask |= mask(pattern[i]);
 		return mask;
 	}
 
-	private static int shift(byte b) {
-		return b >= '`' ? (b & 0xDF)-32 : b-32;
+	private static long mask(byte b) {
+		return 1L << (b >= '`' ? (b & 0xDF)-32 : b-32);
 	}
 
 	/*
@@ -307,7 +307,7 @@ public final class Lex {
 	 */
 
 	public static boolean isOp(byte b) {
-		return b > 32 && b != '|' && b != 127 && ((1L << shift(b)) & OPS_MASK) != 0L;
+		return b > 32 && b != '|' && b != 127 && (mask(b) & OPS_MASK) != 0L;
 	}
 
 	public static byte[] escaped(byte[] literal) {
