@@ -150,26 +150,43 @@ public final class Lex {
 		if (pattern[p0] == '+')
 			return data.length; // mismatch
 		if (pattern[p0] != '(') // basic scan (if no group is used there is no point)
-			return basicScan(pattern, p0, data, dn);
-		// optimized:
-		int pEnd = skipBeyondBlock(pattern, p0+1);
-		// find the longest maskable sequence between pn and pEnd
-		int pm = p0;
-		while (pm < pEnd && pattern[pm] == '(') pm++;
-		int pmEnd = pm;
-		while (pmEnd < pEnd && isMaskable(pattern[pmEnd])) pmEnd++;
-		//TODO improve by adding a offset so that single byte matching instructions can be skipped but later on they are tested
-		int len = pmEnd-pm;
-		if (len == 0) // bad luck: no maskable sequence at group start
-			return basicScan(pattern, p0, data, dn);
-		long mask = mask(pattern, pm, pmEnd); // make literal mask
-		do {
-			dn = hop(pattern, pm, data, dn, mask, len);
-		} while ((int)match(pattern, p0, data, dn, -1, 1) < 0 && ++dn < data.length);
-		return dn;
+			return scanLinear(pattern, p0, data, dn);
+		return scanHop(pattern, p0, data, dn);
 	}
 
-	private static int basicScan(byte[] pattern, int p0, byte[] data, int dn) {
+	private static int scanHop(byte[] pattern, int p0, byte[] data, int dn) {
+		int pm = p0;
+		int offset = 0; //
+		boolean done = false;
+		// skip instructions of known length in hope to find literal afterwards
+		while (pm < pattern.length && !done) {
+			byte op = pattern[pm++];
+			offset++;
+			switch (op) {
+			case '#' :
+			case '?' :
+			case '_' :
+			case '^' :
+			case '@' : break;
+			case '{' : pm = skipBeyondSet(pattern, pm); break;
+			case '\\': pm++; break;
+			default  : pm--; done = true; //$FALL-THROUGH$
+			case '(' : offset--; // does not consume input
+			}
+		}
+		int pmEnd = pm;
+		while (pmEnd < pattern.length && isMaskable(pattern[pmEnd])) pmEnd++;
+		int len = pmEnd-pm;
+		if (len == 0) // bad luck: no maskable sequence at group start
+			return scanLinear(pattern, p0, data, dn);
+		long mask = len == 1 ? 0L : mask(pattern, pm, pmEnd); // make literal mask
+		do {
+			dn = hop(pattern, pm, data, dn, mask, len);
+		} while ((int)match(pattern, p0, data, dn-offset, -1, 1) < 0 && ++dn < data.length);
+		return dn-offset;
+	}
+
+	private static int scanLinear(byte[] pattern, int p0, byte[] data, int dn) {
 		byte chr = pattern[p0];
 		if (isOp(chr)) { // slow: pattern
 			while ((int)match(pattern, p0, data, dn, -1, 1) < 0 && ++dn < data.length);

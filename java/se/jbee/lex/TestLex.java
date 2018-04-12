@@ -108,10 +108,10 @@ public class TestLex {
 		assertFullMatch("#+[.#+]", "12.95");
 		assertFullMatch("\"{^\"}+\"", "\"hello world\"");
 		assertFullMatch("\"~\"", "\"hello world\"");
-		assertFullMatch("\"~({^\\\\}\")", "\"hello \\\"world\\\"\"");
 		assertFullMatch("\\$@{?a-zA-Z0-9_}+", "$püü");
 		assertFullMatch("[\\+]#+[{- }#+]+x", "+45 1234 56789x");
 		assertFullMatch("~(Foo)", "Hello Foo");
+		assertFullMatch("\"~({^\\\\}\")", "\"hello \\\"world\\\"\"");
 		assertFullMatch("~(<h#>)", "Some text <h1>");
 		assertFullMatch("~(<h{1-6}>)", "Some text <h1>");
 		assertFullMatch("~(Foo~(Bar))", "Only a Foo followed by a Bar");
@@ -172,10 +172,10 @@ public class TestLex {
 	 **/
 	@Test
 	public void matchQuotedStrings() {
-		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
 		assertFullMatch("'~'", "'abcd'");
 		assertFullMatch("'''~(''')", "'''ab'c'd'''");
 		assertFullMatch("'{^'}+'", "'abcd and d'");  // by using exclusive sets
+		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
 		assertFullMatch("'~({^\\\\}')", "'ab\\'c'");
 	}
 
@@ -461,6 +461,8 @@ public class TestLex {
 		assertFullMatch("{ab}+", "ab");
 		assertFullMatch("{ab}+", "bb");
 		assertFullMatch("{ab}+", "aa");
+		assertFullMatch("{ab}+", "aaa");
+		assertFullMatch("{ab}+", "bbb");
 		assertFullMatch("{ab}+", "abba");
 		assertFullMatch("{ab}+", "baab");
 	}
@@ -627,9 +629,21 @@ public class TestLex {
 
 	@Test
 	public void matchScanGroup() {
+		assertFullMatch("a~(#.#+)", "axxxx1.3");
 		assertFullMatch("a~(bc)", "abc");
 		assertFullMatch("a~(bc)", "abdbc");
 		assertFullMatch("a~(bc)", "acxbc");
+		assertFullMatch("a~(#bc)", "acxx1bc");
+		assertFullMatch("a~(#@bc)", "acxx1wbc");
+		assertFullMatch("a~(#@_bc)", "acxx1w bc");
+		assertFullMatch("a~(#@_^bc)", "acxx1w +bc");
+		assertFullMatch("a~({^+}bc)", "acxbc");
+		assertFullMatch("a~({^+}bc)", "axbc");
+		assertFullMatch("a~(\\#bc)", "a#bc");
+		assertFullMatch("a~(\\#bc)", "axxx#bc");
+		assertFullMatch("a~([v]bc)", "abc");
+		assertFullMatch("a~([v]bc)", "avbc");
+		assertFullMatch("a~([v]bc)", "axxvbc");
 	}
 
 	@Test
@@ -666,6 +680,18 @@ public class TestLex {
 		assertFullMatch("a~~bc", "axxbc");
 		assertFullMatch("a~~bc", "axxxbc");
 		assertFullMatch("a~~~bc", "axxxbc");
+	}
+
+	@Test
+	public void matchScanOption() {
+		assertFullMatch("a~[b]c", "ac");
+		assertFullMatch("a~[b]c", "abc");
+	}
+
+	@Test
+	public void mismatchScanOption() {
+		assertNoMatchAt("a~[b]c", "axc", 1);
+		assertNoMatchAt("a~[b]c", "axbc", 1);
 	}
 
 	@Test
