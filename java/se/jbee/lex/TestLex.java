@@ -177,6 +177,7 @@ public class TestLex {
 		assertFullMatch("'{^'}+'", "'abcd and d'");  // by using exclusive sets
 		assertFullMatch("'~({^\\\\}')", "'ab'");       // with escaping
 		assertFullMatch("'~({^\\\\}')", "'ab\\'c'");
+		assertFullMatch("'~({^\\\\}')", "'ab\\'\\'c'");
 	}
 
 	@Test
@@ -507,7 +508,8 @@ public class TestLex {
 	}
 
 	@Test
-	public void matchSetInclusingNonASCII() {
+	public void matchSetIncludingNonASCII() {
+		assertFullMatch("{?}+b", "öb");
 		assertFullMatch("{?a}+b", "aab");
 		assertFullMatch("{?a}+b", "aäöaü²€b");
 		assertFullMatch("{?a-zA-Z0-9_}+", "püü");
@@ -769,6 +771,53 @@ public class TestLex {
 	}
 
 	@Test
+	public void matchIncompleteSet() {
+		assertExactMatch("{a", "a");
+		assertExactMatch("{^a", "b");
+		assertExactMatch("{a-", "a");
+		assertExactMatch("{a-c", "a");
+		assertExactMatch("{a-c", "b");
+		assertExactMatch("{a-c", "c");
+		assertExactMatch("{a-@", "a");
+		assertMatchUpTo("{?", "ä", 1);
+	}
+
+	@Test
+	public void mismatchIncompleteSet() {
+		assertNoMatchAt("{@", "a", 0);
+		assertNoMatchAt("{\\", "a", 0);
+		assertNoMatchAt("{a", "b", 0);
+		assertNoMatchAt("{^a", "a", 0);
+		assertNoMatchAt("{a-", "b", 0);
+		assertNoMatchAt("{a-c", "d", 0);
+		assertNoMatchAt("{a-c", "@", 0);
+		assertNoMatchAt("{a-c", "-", 0);
+		assertNoMatchAt("{a-@", "b", 0);
+		assertNoMatchAt("{?", "a", 0);
+	}
+
+	@Test
+	public void matchIncompleteOption() {
+		assertExactMatch("[a", "a");
+		assertExactMatch("[a#", "a1");
+		// option cannot mismatch but match nothing
+		assertMatchUpTo("[a", "b", 0);
+		assertMatchUpTo("[a#", "aa1", 0);
+	}
+
+	@Test
+	public void matchIncompleteGroup() {
+		assertExactMatch("(a", "a");
+		assertExactMatch("(a#", "a1");
+	}
+
+	@Test
+	public void mismatchIncompleteGroup() {
+		assertNoMatchAt("(a", "b", 0);
+		assertNoMatchAt("(a#", "aa1", 1);
+	}
+
+	@Test
 	public void matchNonAsciiSet() {
 		assertEquals(3, match("`{?}+`".getBytes(US_ASCII), new byte[] {-1, -42, -127}, 0).dn);
 	}
@@ -782,6 +831,11 @@ public class TestLex {
 		assertEquals(pos, match("`"+pattern+"`", data).dn);
 	}
 
+	private static void assertExactMatch(String pattern, String data) {
+		Match match = match(pattern, data);
+		assertEquals(bytes(data).length, match.dn);
+	}
+
 	/**
 	 * If a pattern end with groups or repetitions their positions might not be
 	 * passed when data is fully processed.
@@ -791,12 +845,16 @@ public class TestLex {
 	 * 2) We add extra byte at the end of data to make sure in pattern causes ` exit
 	 */
 	private static void assertFullMatch(String pattern, String data) {
+		assertMatchInSequence(pattern, data);
 		String mark = " ";
-		pattern = "`"+pattern+mark+"`";
-		data += mark;
-		Match match = match(pattern, data+" "); // we add one more "random" byte to data so that there would be more to process so that ` exits matching not having reached end of data
-		assertEquals(data.getBytes(UTF_8).length, match.dn);
+		assertMatchInSequence("`"+pattern+mark+"`", data+mark);
+	}
+
+	private static void assertMatchInSequence(String pattern, String data) {
+		Match match = match(pattern, data+" "); // we add one more "random" byte to data so that there would be more to process so that ` (or end of pattern) exits matching not having reached end of data
+		assertEquals(bytes(data).length, match.dn);
 		assertEquals(bytes(pattern).length, match.pn);
+		assertExactMatch(pattern, data);
 	}
 
 	static final class Match {
