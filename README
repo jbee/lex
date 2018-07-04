@@ -21,7 +21,7 @@ Java: basic ~100 LOC, optimized ~150 LOC
 
 ________________________________________________________________________________
 
-SETS         {...}, }...{
+SETS         {...}
 
 {abc}        a set of bytes "a","b" and "c"
 {^abc}       a set of any byte but "a","b" and "c"
